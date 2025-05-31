@@ -1,0 +1,35 @@
+const { addSummarizeSpokenText, addMultipleChoicesAndMultipleAnswers, getAllSummarizeSpokenText, getAllMultipleChoicesAndMultipleAnswers, addListeningFillInTheBlanks, getAllListeningFillInTheBlanks, addMultipleChoiceSingleAnswers, getAllMultipleChoiceSingleAnswers, editSummarizeSpokenText, editMultipleChoicesAndMultipleAnswers, editListeningFillInTheBlanks, editMultipleChoiceSingleAnswers } = require('../../controllers/questionsControllers/spoken_test.controller');
+const {isUserLoggedIn, isAdminUser} = require('../../middleware/middlewares');
+const upload = require('../../middleware/upload');
+
+const router = require('express').Router();
+
+
+router.route('/summarize-spoken-text')
+    .get(isUserLoggedIn, getAllSummarizeSpokenText)
+    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editSummarizeSpokenText)
+    .post(isUserLoggedIn, isAdminUser, upload.single('voice'),addSummarizeSpokenText);
+
+
+
+
+router.route('/multiple-choice-multiple-answers')
+    .get(isUserLoggedIn, getAllMultipleChoicesAndMultipleAnswers)
+    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editMultipleChoicesAndMultipleAnswers)
+    .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addMultipleChoicesAndMultipleAnswers);
+
+
+
+router.route('/listening-fill-in-the-blanks')
+    .get(isUserLoggedIn, getAllListeningFillInTheBlanks)
+    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editListeningFillInTheBlanks)
+    .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addListeningFillInTheBlanks);
+
+
+router.route('/multiple-choice-single-answers')
+    .get(isUserLoggedIn, getAllMultipleChoiceSingleAnswers)
+    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editMultipleChoiceSingleAnswers)
+    .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addMultipleChoiceSingleAnswers);
+
+
+module.exports = router;

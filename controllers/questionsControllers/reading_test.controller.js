@@ -27,7 +27,13 @@ module.exports.addFillInTheBlanks = asyncWrapper(async(req, res)=>{
 })
 
 module.exports.getAllFillInTheBlanks = asyncWrapper(async(req, res)=>{
-    const allFillinTheBlanks = await Question.find({subtype: "rw_fill_in_the_blanks"}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const allFillinTheBlanks = await Question.find({subtype: "rw_fill_in_the_blanks"})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
 
     res.status(200).json({data: allFillinTheBlanks});
 })
@@ -56,13 +62,7 @@ module.exports.editFillIntheBlanks = asyncWrapper(async(req, res)=>{
     res.status(200).json({message: "Question Updated Successfully"});
 })
 
-module.exports.deleteQuestion = asyncWrapper(async(req, res)=>{
-    const {questionId} = req.body;
 
-    await Question.findByIdAndDelete(questionId);
-
-    res.status(200).json({message: "Question Deleted"});
-})
 
 
 // -------------------------------------mcq_multiple----------------------------------
@@ -90,7 +90,13 @@ module.exports.addMcqMultiple = asyncWrapper(async(req, res)=>{
     res.status(200).json({data: newQuestion});
 })
 module.exports.getMcqMultiple = asyncWrapper(async(req, res)=>{
-    const allMcqMultipleQuestions = await Question.find({subtype: "mcq_multiple"}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const allMcqMultipleQuestions = await Question.find({subtype: "mcq_multiple"})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
 
     res.status(200).json({data: allMcqMultipleQuestions});
 })
@@ -151,7 +157,13 @@ module.exports.addMcqSingle = asyncWrapper(async(req, res)=>{
 })
 
 module.exports.getMcqSingle = asyncWrapper(async(req, res)=>{
-    const allMcqSingle = await Question.find({subtype: "mcq_single"}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const allMcqSingle = await Question.find({subtype: "mcq_single"})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
 
     res.status(200).json({data: allMcqSingle});
 })
@@ -276,7 +288,13 @@ module.exports.editReorderParagraphs = asyncWrapper(async(req, res)=>{
 })
 
 module.exports.getReorderParagraphs = asyncWrapper(async(req, res)=>{
-    const allReorderParagraphs = await Question.find({subtype: "reorder_paragraphs"}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const allReorderParagraphs = await Question.find({subtype: "reorder_paragraphs"})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
 
     res.status(200).json({data: allReorderParagraphs});
 })

@@ -35,6 +35,6 @@ router.route('/reorder-paragraphs')
     .put(isUserLoggedIn, isAdminUser, editReorderParagraphs);
 
 
-router.delete('/delete/question', isUserLoggedIn, isAdminUser,deleteQuestion);
+// router.delete('/delete/question', isUserLoggedIn, isAdminUser,deleteQuestion);
 
 module.exports = router;

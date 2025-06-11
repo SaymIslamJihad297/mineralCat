@@ -55,6 +55,7 @@ const faqsRoutes = require('./routes/adminRoutes/faqs.routes');
 const stripeRoutes = require('./routes/payments/stripe.routes');
 const FullmockTestRoutes = require('./routes/mockTestRoutes/FullmockTest.routes');
 const SectionalMockTestRoutes = require('./routes/mockTestRoutes/SectionalMockTest.routes');
+const termsAndConditions = require('./routes/adminRoutes/terms.routes');
 
 // models
 const userModel = require('./models/user.models');
@@ -119,6 +120,7 @@ app.use('/faqs', faqsRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/full-mock-test', FullmockTestRoutes);
 app.use('/sectional-mock-test', SectionalMockTestRoutes);
+app.use('/terms', termsAndConditions);
 
 // async function main() {
 //     mongoose.connect('mongodb://127.0.0.1:27017/MineralCatPTE');
@@ -130,6 +132,10 @@ async function main() {
 app.get('/success', (req, res) => {
     res.send("Payment Successfull");
 })
+
+app.use((req, res, next) => {
+  next(new ExpressError(404, "Page not found"));
+});
 
 app.use((err, req, res, next) => {
     let { status = 500, message = "Some error happend" } = err;

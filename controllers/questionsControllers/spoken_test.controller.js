@@ -69,7 +69,13 @@ module.exports.editSummarizeSpokenText = asyncWrapper(async(req, res)=>{
 })
 
 module.exports.getAllSummarizeSpokenText = asyncWrapper(async(req, res)=>{
-    const questions = await questionsModel.find({subtype: 'summarize_spoken_text'}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({subtype: 'summarize_spoken_text'})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
     res.status(200).json(questions);
 })
@@ -151,7 +157,13 @@ module.exports.editMultipleChoicesAndMultipleAnswers = asyncWrapper(async(req, r
 })
 
 module.exports.getAllMultipleChoicesAndMultipleAnswers = asyncWrapper(async(req, res)=>{
-    const questions = await questionsModel.find({subtype: 'listening_multiple_choice_multiple_answers'}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({subtype: 'listening_multiple_choice_multiple_answers'})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
     res.status(200).json(questions);
 })
@@ -231,7 +243,13 @@ module.exports.editListeningFillInTheBlanks =asyncWrapper( async (req, res) => {
 })
 
 module.exports.getAllListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const questions = await questionsModel.find({ subtype: 'listening_fill_in_the_blanks' }).sort({ createdAt: -1 });
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({ subtype: 'listening_fill_in_the_blanks' })
+    .limit(limit)
+    .skip(skip)
+    .sort({ createdAt: -1 });
     if (!questions) throw new ExpressError('No question found', 404);
     res.status(200).json(questions);
 });
@@ -316,7 +334,13 @@ module.exports.editMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) =
 })
 
 module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) => {
-    const questions = await questionsModel.find({ subtype: 'listening_multiple_choice_single_answers' }).sort({ createdAt: -1 });
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({ subtype: 'listening_multiple_choice_single_answers' })
+    .limit(limit)
+    .skip(skip)
+    .sort({ createdAt: -1 });
     if (!questions) throw new ExpressError('No question found', 404);
     res.status(200).json(questions);
 });

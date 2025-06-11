@@ -65,9 +65,17 @@ module.exports.editReadAloud = asyncWrapper(async (req, res) => {
 
 
 module.exports.getAllReadAloud = async (req, res) => {
-    const questions = await questionsModel.find({subtype: 'read_aloud'}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    
+    const questions = await questionsModel.find({subtype: 'read_aloud'})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
+    const questionsCount = await questionsModel.countDocuments();
     if(!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+    res.status(200).json({questions, questionsCount});
 }
 
 // ------------------------------------------------------------repeatSentence---------------------------------------------------
@@ -148,7 +156,13 @@ module.exports.editRepeatSentence = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
-    const questions = await questionsModel.find({subtype: 'repeat_sentence'}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({subtype: 'repeat_sentence'})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
     res.status(200).json(questions);
 })
@@ -237,7 +251,13 @@ module.exports.editRespondToASituation = asyncWrapper(async (req, res) => {
 
 
 module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
-    const questions = await questionsModel.find({subtype: 'respond_to_situation'}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({subtype: 'respond_to_situation'})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
     res.status(200).json(questions);
 })
@@ -322,7 +342,13 @@ module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
 
 
 module.exports.getAllAnswerShortQuestion = asyncWrapper(async (req, res) => {
-    const questions = await questionsModel.find({subtype: 'answer_short_question'}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({subtype: 'answer_short_question'})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
     res.status(200).json(questions);
 })

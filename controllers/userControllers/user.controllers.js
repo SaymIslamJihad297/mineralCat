@@ -37,11 +37,6 @@ module.exports.signUpUser = asyncWrapper(async (req, res) => {
 
   const { accessToken, refreshToken } = await accessTokenAndRefreshTokenGenerator(newUser._id);
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-  };
-
   return res
     .status(200)
     .json({

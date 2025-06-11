@@ -52,7 +52,13 @@ module.exports.editSummarizeWrittenText = asyncWrapper(async(req, res)=>{
 })
 
 module.exports.getSummarizeWrittenText = asyncWrapper(async(req, res)=>{
-    const allSummarizeWrittenTextQUestions = await questionsModel.find({subtype: "summarize_written_text"}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const allSummarizeWrittenTextQUestions = await questionsModel.find({subtype: "summarize_written_text"})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
 
     res.status(200).json({data: allSummarizeWrittenTextQUestions});
 })
@@ -104,7 +110,13 @@ module.exports.editWriteEmail = asyncWrapper(async(req, res)=>{
 })
 
 module.exports.getWriteEmail = asyncWrapper(async(req, res)=>{
-    const allWriteEmailQUestions = await questionsModel.find({subtype: "write_email"}).sort({createdAt: -1});
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const allWriteEmailQUestions = await questionsModel.find({subtype: "write_email"})
+    .limit(limit)
+    .skip(skip)
+    .sort({createdAt: -1});
 
     res.status(200).json({data: allWriteEmailQUestions});
 })

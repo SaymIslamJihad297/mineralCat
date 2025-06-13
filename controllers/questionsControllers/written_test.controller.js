@@ -55,12 +55,12 @@ module.exports.getSummarizeWrittenText = asyncWrapper(async(req, res)=>{
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const allSummarizeWrittenTextQUestions = await questionsModel.find({subtype: "summarize_written_text"})
+    const questions = await questionsModel.find({subtype: "summarize_written_text"})
     .limit(limit)
     .skip(skip)
     .sort({createdAt: -1});
-
-    res.status(200).json({data: allSummarizeWrittenTextQUestions});
+    const questionsCount = await questionsModel.countDocuments({subtype: 'summarize_written_text'});
+    res.status(200).json({questions, questionsCount});
 })
 
 
@@ -113,10 +113,10 @@ module.exports.getWriteEmail = asyncWrapper(async(req, res)=>{
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const allWriteEmailQUestions = await questionsModel.find({subtype: "write_email"})
+    const questions = await questionsModel.find({subtype: "write_email"})
     .limit(limit)
     .skip(skip)
     .sort({createdAt: -1});
-
-    res.status(200).json({data: allWriteEmailQUestions});
+    const questionsCount = await questionsModel.countDocuments({subtype: 'write_email'});
+    res.status(200).json({questions, questionsCount});
 })

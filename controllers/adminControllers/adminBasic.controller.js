@@ -131,8 +131,6 @@ module.exports.loginUser = asyncWrapper(async(req, res)=>{
 
 module.exports.deleteQuestion = asyncWrapper(async(req, res)=>{
     const {id} = req.params;
-
-    console.log(id);
     
 
     await questionsModel.findByIdAndDelete(id);

@@ -67,19 +67,19 @@ module.exports.editReadAloud = asyncWrapper(async (req, res) => {
 module.exports.getAllReadAloud = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
-
     
     const questions = await questionsModel.find({subtype: 'read_aloud'})
     .limit(limit)
     .skip(skip)
     .sort({createdAt: -1});
-    const questionsCount = await questionsModel.countDocuments();
+    const questionsCount = await questionsModel.countDocuments({subtype: 'read_aloud'});
     if(!questions) throw new ExpressError('No question found', 404);
     res.status(200).json({questions, questionsCount});
 }
 
 // ------------------------------------------------------------repeatSentence---------------------------------------------------
 module.exports.addRepeatSentence = asyncWrapper(async (req, res) => {
+    
     const {error, value} = repeatSentenceSchemaValidator.validate(req.body);
     if (error) throw new ExpressError(400, error.details[0].message);
     
@@ -95,6 +95,9 @@ module.exports.addRepeatSentence = asyncWrapper(async (req, res) => {
         folder: `listening_test/${folderName}`,
         type: 'authenticated',
     })
+
+    // console.log(result);
+    
     
     fs.unlinkSync(req.file.path);
 
@@ -164,7 +167,8 @@ module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
     .skip(skip)
     .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+    const questionsCount = await questionsModel.countDocuments({subtype: 'repeat_sentence'});
+    res.status(200).json({questions, questionsCount});
 })
 
 
@@ -259,7 +263,8 @@ module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
     .skip(skip)
     .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+    const questionsCount = await questionsModel.countDocuments({subtype: 'respond_to_situation'});
+    res.status(200).json({questions, questionsCount});
 })
 
 
@@ -350,7 +355,9 @@ module.exports.getAllAnswerShortQuestion = asyncWrapper(async (req, res) => {
     .skip(skip)
     .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+    const questionsCount = await questionsModel.countDocuments({subtype: 'respond_to_situation'});
+
+    res.status(200).json({questions, questionsCount});
 })
 
 

@@ -77,7 +77,9 @@ module.exports.getAllSummarizeSpokenText = asyncWrapper(async(req, res)=>{
     .skip(skip)
     .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+
+    const questionsCount = await questionsModel.countDocuments({subtype: 'summarize_spoken_text'});
+    res.status(200).json({questions, questionsCount});
 })
 
 // --------------------------multiple choice and multiple answers---------------
@@ -165,7 +167,8 @@ module.exports.getAllMultipleChoicesAndMultipleAnswers = asyncWrapper(async(req,
     .skip(skip)
     .sort({createdAt: -1});
     if(!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+    const questionsCount = await questionsModel.countDocuments({subtype: 'listening_multiple_choice_multiple_answers'});
+    res.status(200).json({questions, questionsCount});
 })
 
 
@@ -251,7 +254,8 @@ module.exports.getAllListeningFillInTheBlanks = asyncWrapper(async (req, res) =>
     .skip(skip)
     .sort({ createdAt: -1 });
     if (!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+    const questionsCount = await questionsModel.countDocuments({subtype: 'listening_fill_in_the_blanks'});
+    res.status(200).json({questions, questionsCount});
 });
 
 
@@ -342,6 +346,7 @@ module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res)
     .skip(skip)
     .sort({ createdAt: -1 });
     if (!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json(questions);
+    const questionsCount = await questionsModel.countDocuments({subtype: 'listening_multiple_choice_single_answers'});
+    res.status(200).json({questions, questionsCount});
 });
 

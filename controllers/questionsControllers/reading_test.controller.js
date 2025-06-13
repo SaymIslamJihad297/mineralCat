@@ -35,7 +35,9 @@ module.exports.getAllFillInTheBlanks = asyncWrapper(async(req, res)=>{
     .skip(skip)
     .sort({createdAt: -1});
 
-    res.status(200).json({data: allFillinTheBlanks});
+    const questionsCount = await questionsModel.countDocuments({subtype: 'rw_fill_in_the_blanks'});
+
+    res.status(200).json({data: allFillinTheBlanks, questionsCount});
 })
 
 module.exports.editFillIntheBlanks = asyncWrapper(async(req, res)=>{
@@ -98,7 +100,9 @@ module.exports.getMcqMultiple = asyncWrapper(async(req, res)=>{
     .skip(skip)
     .sort({createdAt: -1});
 
-    res.status(200).json({data: allMcqMultipleQuestions});
+    const questionsCount = await questionsModel.countDocuments({subtype: 'mcq_multiple'});
+
+    res.status(200).json({data: allMcqMultipleQuestions, questionsCount});
 })
 
 module.exports.editMcqMultiple = asyncWrapper(async(req, res)=>{
@@ -165,7 +169,9 @@ module.exports.getMcqSingle = asyncWrapper(async(req, res)=>{
     .skip(skip)
     .sort({createdAt: -1});
 
-    res.status(200).json({data: allMcqSingle});
+    const questionsCount = await questionsModel.countDocuments({subtype: 'mcq_single'});
+
+    res.status(200).json({data: allMcqSingle, questionsCount});
 })
 
 
@@ -296,6 +302,8 @@ module.exports.getReorderParagraphs = asyncWrapper(async(req, res)=>{
     .skip(skip)
     .sort({createdAt: -1});
 
-    res.status(200).json({data: allReorderParagraphs});
+    const questionsCount = await questionsModel.countDocuments({subtype: 'reorder_paragraphs'});
+
+    res.status(200).json({data: allReorderParagraphs, questionsCount});
 })
 

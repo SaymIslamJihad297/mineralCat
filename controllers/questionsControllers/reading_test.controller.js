@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const Question = require('../../models/questions.model');
-const { FillInTheBlanksQuestionSchemaValidator, mcqMultipleSchemaValidator, mcqSingleSchemaValidator, readingFillInTheBlanksSchemaValidator, reorderParagraphsSchemaValidator } = require('../../validations/schemaValidations');
+const { FillInTheBlanksQuestionSchemaValidator, mcqMultipleSchemaValidator, mcqSingleSchemaValidator, readingFillInTheBlanksSchemaValidator, reorderParagraphsSchemaValidator, EditFillInTheBlanksQuestionSchemaValidator, EditmcqMultipleSchemaValidator, EditmcqSingleSchemaValidator } = require('../../validations/schemaValidations');
 const ExpressError = require('../../utils/ExpressError');
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 
@@ -44,7 +44,7 @@ module.exports.editFillIntheBlanks = asyncWrapper(async(req, res)=>{
     const {questionId, newData} = req.body;
     
 
-    const {error, value} = FillInTheBlanksQuestionSchemaValidator.validate(newData);
+    const {error, value} = EditFillInTheBlanksQuestionSchemaValidator.validate(newData);
 
     const {type='reading', subtype='rw_fill_in_the_blanks', prompt, blanks, heading } = value;
 
@@ -109,7 +109,7 @@ module.exports.editMcqMultiple = asyncWrapper(async(req, res)=>{
     const {questionId, newData} = req.body;
     
 
-    const {error, value} = mcqMultipleSchemaValidator.validate(newData);
+    const {error, value} = EditmcqMultipleSchemaValidator.validate(newData);
 
     const {type='reading', subtype='mcq_multiple', prompt, options, correctAnswers } = value;
 
@@ -179,7 +179,7 @@ module.exports.editMcqSingle = asyncWrapper(async(req, res)=>{
     const {questionId, newData} = req.body;
     
 
-    const {error, value} = mcqSingleSchemaValidator.validate(newData);
+    const {error, value} = EditmcqSingleSchemaValidator.validate(newData);
 
     const {type='reading', subtype='mcq_single', prompt, options, correctAnswers } = value;
 

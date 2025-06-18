@@ -17,7 +17,8 @@ const cors = require('cors');
 
 const allowedOrigins = [
     'http://localhost:5173',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'https://pipefish-famous-socially.ngrok-free.app'
 ];
 
 app.use(cors({
@@ -56,6 +57,7 @@ const stripeRoutes = require('./routes/payments/stripe.routes');
 const FullmockTestRoutes = require('./routes/mockTestRoutes/FullmockTest.routes');
 const SectionalMockTestRoutes = require('./routes/mockTestRoutes/SectionalMockTest.routes');
 const termsAndConditions = require('./routes/adminRoutes/terms.routes');
+const aboutUs = require("./routes/adminRoutes/aboutUs.routes");
 
 // models
 const userModel = require('./models/user.models');
@@ -121,6 +123,7 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/full-mock-test', FullmockTestRoutes);
 app.use('/sectional-mock-test', SectionalMockTestRoutes);
 app.use('/terms', termsAndConditions);
+app.use('/about-us', aboutUs);
 
 // async function main() {
 //     mongoose.connect('mongodb://127.0.0.1:27017/MineralCatPTE');

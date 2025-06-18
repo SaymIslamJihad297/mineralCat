@@ -40,6 +40,13 @@ module.exports.FillInTheBlanksQuestionSchemaValidator = Joi.object({
     prompt: Joi.string().required(),
     blanks: Joi.array().required(),
 })
+module.exports.EditFillInTheBlanksQuestionSchemaValidator = Joi.object({
+    type: Joi.string().optional(),
+    subtype: Joi.string().optional(),
+    heading: Joi.string().optional(),
+    prompt: Joi.string().optional(),
+    blanks: Joi.array().optional(),
+})
 
 
 module.exports.mcqMultipleSchemaValidator = Joi.object({
@@ -51,6 +58,16 @@ module.exports.mcqMultipleSchemaValidator = Joi.object({
     options: Joi.array().required(),
     correctAnswers: Joi.array().required(),
 })
+module.exports.editmcqMultipleSchemaValidator = Joi.object({
+    type: Joi.string().optional(),
+    subtype: Joi.string().optional(),
+    heading: Joi.string().optional(),
+    prompt: Joi.string().optional(),
+    text: Joi.string().optional(),
+    options: Joi.array().optional(),
+    correctAnswers: Joi.array().optional(),
+})
+
 module.exports.mcqSingleSchemaValidator = Joi.object({
     type: Joi.string().optional(),
     subtype: Joi.string().optional(),
@@ -59,6 +76,24 @@ module.exports.mcqSingleSchemaValidator = Joi.object({
     text: Joi.string().required(),
     options: Joi.array().required(),
     correctAnswers: Joi.array().required(),
+})
+module.exports.EditmcqSingleSchemaValidator = Joi.object({
+    type: Joi.string().optional(),
+    subtype: Joi.string().optional(),
+    heading: Joi.string().optional(),
+    prompt: Joi.string().optional(),
+    text: Joi.string().optional(),
+    options: Joi.array().optional(),
+    correctAnswers: Joi.array().optional(),
+})
+module.exports.EditmcqMultipleSchemaValidator = Joi.object({
+    type: Joi.string().optional(),
+    subtype: Joi.string().optional(),
+    heading: Joi.string().optional(),
+    prompt: Joi.string().optional(),
+    text: Joi.string().optional(),
+    options: Joi.array().optional(),
+    correctAnswers: Joi.array().optional(),
 })
 
 
@@ -84,6 +119,14 @@ module.exports.mcqSingleSchemaValidator = Joi.object({
 
 
 
+module.exports.reorderParagraphsSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        prompt: Joi.string().required(),
+        options: Joi.array().required(),
+    }
+)
 module.exports.reorderParagraphsSchemaValidator = Joi.object(
     {
         type: Joi.string().optional(),
@@ -163,11 +206,26 @@ module.exports.readAloudSchemaValidator = Joi.object(
         prompt: Joi.string().required(),
     }
 )
+module.exports.editreadAloudSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
+        prompt: Joi.string().optional(),
+    }
+)
 module.exports.repeatSentenceSchemaValidator = Joi.object(
     {
         type: Joi.string().optional(),
         subtype: Joi.string().optional(),
         heading: Joi.string().required(),
+    }
+)
+module.exports.editrepeatSentenceSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
     }
 )
 
@@ -182,6 +240,14 @@ module.exports.respondToASituationSchemaValidator = Joi.object(
         prompt: Joi.string().required(),
     }
 )
+module.exports.editrespondToASituationSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
+        prompt: Joi.string().optional(),
+    }
+)
 
 
 module.exports.answerShortQuestionSchemaValidator = Joi.object(
@@ -189,6 +255,14 @@ module.exports.answerShortQuestionSchemaValidator = Joi.object(
         type: Joi.string().optional(),
         subtype: Joi.string().optional(),
         heading: Joi.string().required(),
+    }
+)
+
+module.exports.editanswerShortQuestionSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
     }
 )
 

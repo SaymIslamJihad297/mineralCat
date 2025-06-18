@@ -1,8 +1,8 @@
 const FAQ = require("../../models/faqs.model");
 
-module.exports.getAllFAQs = async (req, res) => {
+module.exports.get5Faq = async (req, res) => {
     try {
-        const faqs = await FAQ.find({}).sort({ createdAt: -1 });
+        const faqs = await FAQ.find({}).limit(5).sort({ createdAt: -1 });
 
         if (!faqs || faqs.length === 0) {
             return res.status(404).json({ message: "No FAQs found" });
@@ -51,6 +51,22 @@ module.exports.updateFAQ = async (req, res) => {
         return res.status(200).json(updatedFAQ);
     } catch (error) {
         console.error("Error updating FAQ:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+
+module.exports.getAllFaqs = async (req, res) => {
+    try {
+        const faqs = await FAQ.find({}).sort({ createdAt: -1 });
+
+        if (!faqs || faqs.length === 0) {
+            return res.status(404).json({ message: "No FAQs found" });
+        }
+
+        return res.status(200).json(faqs);
+    } catch (error) {
+        console.error("Error fetching FAQs:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 }

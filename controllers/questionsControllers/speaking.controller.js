@@ -1,6 +1,6 @@
 const questionsModel = require("../../models/questions.model");
 const ExpressError = require("../../utils/ExpressError");
-const { readAloudSchemaValidator, repeatSentenceSchemaValidator, respondToASituationSchemaValidator, answerShortQuestionSchemaValidator } = require("../../validations/schemaValidations");
+const { readAloudSchemaValidator, repeatSentenceSchemaValidator, respondToASituationSchemaValidator, answerShortQuestionSchemaValidator, editreadAloudSchemaValidator, editrepeatSentenceSchemaValidator, editrespondToASituationSchemaValidator, editanswerShortQuestionSchemaValidator } = require("../../validations/schemaValidations");
 const cloudinary = require('../../middleware/cloudinary.config');
 const path = require('path');
 const fs = require('node:fs');
@@ -34,7 +34,7 @@ module.exports.addReadAloud = asyncWrapper(async (req, res) => {
 module.exports.editReadAloud = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
 
-    const { error, value } = readAloudSchemaValidator.validate(data);
+    const { error, value } = editreadAloudSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     const {type='speaking', subtype='read_aloud', heading, prompt} = value;
@@ -121,7 +121,7 @@ module.exports.editRepeatSentence = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
 
     // Validate incoming data (excluding questionId)
-    const { error, value } = repeatSentenceSchemaValidator.validate(data);
+    const { error, value } = editrepeatSentenceSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");
@@ -216,7 +216,7 @@ module.exports.addRespondToASituation = asyncWrapper(async (req, res) => {
 module.exports.editRespondToASituation = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
 
-    const { error, value } = respondToASituationSchemaValidator.validate(data);
+    const { error, value } = editrespondToASituationSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");
@@ -308,7 +308,7 @@ module.exports.addAnswerShortQuestion = asyncWrapper(async (req, res) => {
 module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
 
-    const { error, value } = answerShortQuestionSchemaValidator.validate(data);
+    const { error, value } = editanswerShortQuestionSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");

@@ -3,8 +3,11 @@ const userModels = require('../../models/user.models');
 const { userSchemaValidator, LoginFormValidator } = require('../../validations/schemaValidations');
 const { accessTokenAndRefreshTokenGenerator } = require('../../tokenGenerator');
 const jwt = require('jsonwebtoken');
-const {asyncWrapper} = require('../../utils/AsyncWrapper');
+const { asyncWrapper } = require('../../utils/AsyncWrapper');
 const supscriptionModel = require('../../models/supscription.model');
+const fs = require('node:fs');
+const cloudinary = require('../../middleware/cloudinary.config');
+const path = require('node:path');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -49,28 +52,28 @@ module.exports.signUpUser = asyncWrapper(async (req, res) => {
 });
 
 
-module.exports.loginUser = asyncWrapper(async(req, res)=>{
-    const {error, value} = LoginFormValidator.validate(req.body);
+module.exports.loginUser = asyncWrapper(async (req, res) => {
+  const { error, value } = LoginFormValidator.validate(req.body);
 
-    const {email, password} = value;
+  const { email, password } = value;
 
-    const user = await userModels.findOne({email});
-    if(!user) return res.status(400).json({message: "Wrong email or password"});
+  const user = await userModels.findOne({ email });
+  if (!user) return res.status(400).json({ message: "Wrong email or password" });
 
-    const checkPassword = await user.verifyPassword(password);
+  const checkPassword = await user.verifyPassword(password);
 
-    if(!checkPassword) return res.status(400).json({message: "Wrong email or password"});
+  if (!checkPassword) return res.status(400).json({ message: "Wrong email or password" });
 
-    const {accessToken, refreshToken} = await accessTokenAndRefreshTokenGenerator(user._id);
+  const { accessToken, refreshToken } = await accessTokenAndRefreshTokenGenerator(user._id);
 
-    return res
+  return res
     .status(200)
     .json(
-        {
-            user: user,
-            accessToken,
-            refreshToken,
-        }
+      {
+        user: user,
+        accessToken,
+        refreshToken,
+      }
     )
 })
 
@@ -113,52 +116,65 @@ module.exports.refreshToken = asyncWrapper(async (req, res) => {
 });
 
 
-module.exports.signupWithGoogle = (req, res)=>{
-    const user = req.user;
-    const accessToken = jwt.sign(
-        {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-        },
-    
-        process.env.ACCESS_TOKEN_SECRET,
-        {
-            expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
-        }
-    )
-    const refreshToken = jwt.sign(
-        {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-        },
-    
-        process.env.REFRESH_TOKEN_SECRET,
-        {
-            expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
-        }
-    )
+module.exports.signupWithGoogle = (req, res) => {
+  const user = req.user;
+  const accessToken = jwt.sign(
+    {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
 
-    res.status(200).json({accessToken, refreshToken});
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+    }
+  )
+  const refreshToken = jwt.sign(
+    {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+    }
+  )
+
+  res.status(200).json({ accessToken, refreshToken });
 }
 
 
 
-module.exports.userInfo = asyncWrapper(async (req, res)=>{
-    const user = req.user;
-    const userData = await userModels.findById(user._id).select(['-password']).populate("userSupscription");
-    return res.status(200).json({user: userData});
+module.exports.userInfo = asyncWrapper(async (req, res) => {
+  const user = req.user;
+  const userData = await userModels.findById(user._id).select(['-password']).populate("userSupscription");
+  return res.status(200).json({ user: userData });
 });
 
 
 
-module.exports.updateUser = asyncWrapper(async (req, res)=>{
-    const data = req.body;
-    const user = req.user;
-    
-    const userData = await userModels.findByIdAndUpdate(user._id, data, {new: true}).select(['-password']);
-    return res.status(200).json({user: userData});
+module.exports.updateUser = asyncWrapper(async (req, res) => {
+  const data = req.body;
+  const user = req.user;
+
+  let result;
+  const folderName = 'userProfile'
+  if (req.file) {
+    result = await cloudinary.uploader.upload(req.file.path, {
+      resource_type: 'auto',
+      public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+      folder: `listening_test/${folderName}`,
+      type: 'authenticated',
+    })
+  }
+
+  fs.unlinkSync(req.file.path);
+
+  const userData = await userModels.findByIdAndUpdate(user._id, {...data, profile: result.secure_url}, { new: true }).select(['-password']);
+  return res.status(200).json({ user: userData });
 });

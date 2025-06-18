@@ -5,7 +5,7 @@ const router = require('express').Router();
 
 
 router.route('/terms-action')
-    .get(isUserLoggedIn, isAdminUser, getTermsAndCondition)
+    .get(getTermsAndCondition)
     .put(isUserLoggedIn, isAdminUser, editTermsAndCondition);
 
 

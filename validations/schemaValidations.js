@@ -295,3 +295,10 @@ module.exports.sectionalMockTestSchemaValidator = Joi.object({
         })
     ).required()
 })
+
+
+
+
+module.exports.readAloudResultSchemaValidator = Joi.object({
+    
+})

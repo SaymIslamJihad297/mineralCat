@@ -13,12 +13,12 @@ const openai = new OpenAI({
 
 
 
-module.exports.addSummarizeWrittenText = asyncWrapper(async(req, res)=>{
-    const {error, value} = addSummarizeTextSchemaValidator.validate(req.body);
+module.exports.addSummarizeWrittenText = asyncWrapper(async (req, res) => {
+    const { error, value } = addSummarizeTextSchemaValidator.validate(req.body);
 
-    const {type='writing', subtype='summarize_written_text', heading, text} = value;
+    const { type = 'writing', subtype = 'summarize_written_text', heading, text } = value;
 
-    if(error) throw new ExpressError(400, error.details[0].message);
+    if (error) throw new ExpressError(400, error.details[0].message);
 
     value.createdBy = req.user._id;
 
@@ -29,44 +29,44 @@ module.exports.addSummarizeWrittenText = asyncWrapper(async(req, res)=>{
         text,
     });
 
-    res.status(200).json({data: newQuestion});
+    res.status(200).json({ data: newQuestion });
 })
 
 
-module.exports.editSummarizeWrittenText = asyncWrapper(async(req, res)=>{
-    const {questionId, newData} = req.body;
-    
+module.exports.editSummarizeWrittenText = asyncWrapper(async (req, res) => {
+    const { questionId, newData } = req.body;
 
-    const {error, value} = addSummarizeTextSchemaValidator.validate(newData);
 
-    const {type='writing', subtype='summarize_written_text', heading, text} = value;
-    
+    const { error, value } = addSummarizeTextSchemaValidator.validate(newData);
 
-    if(error) throw new ExpressError(400, error.details[0].message);
+    const { type = 'writing', subtype = 'summarize_written_text', heading, text } = value;
 
-    if(!questionId) throw new ExpressError(401, "Question Id required");
+
+    if (error) throw new ExpressError(400, error.details[0].message);
+
+    if (!questionId) throw new ExpressError(401, "Question Id required");
 
     await questionsModel.findByIdAndUpdate(questionId, {
         type,
         subtype,
         heading,
         text,
-});
+    });
 
 
-    res.status(200).json({message: "Question Updated Successfully"});
+    res.status(200).json({ message: "Question Updated Successfully" });
 })
 
-module.exports.getSummarizeWrittenText = asyncWrapper(async(req, res)=>{
+module.exports.getSummarizeWrittenText = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const questions = await questionsModel.find({subtype: "summarize_written_text"})
-    .limit(limit)
-    .skip(skip)
-    .sort({createdAt: -1});
-    const questionsCount = await questionsModel.countDocuments({subtype: 'summarize_written_text'});
-    res.status(200).json({questions, questionsCount});
+    const questions = await questionsModel.find({ subtype: "summarize_written_text" })
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    const questionsCount = await questionsModel.countDocuments({ subtype: 'summarize_written_text' });
+    res.status(200).json({ questions, questionsCount });
 })
 module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
     const { questionId, userSummary } = req.body;
@@ -109,38 +109,38 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
     `;
 
     try {
-    const gptResponse = await openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-            {
-                role: "system",
-                content: "You are an expert at evaluating summaries of written texts."
-            },
-            {
-                role: "user",
-                content: prompt
-            }
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-    });
+        const gptResponse = await openai.chat.completions.create({
+            model: 'gpt-4',
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert at evaluating summaries of written texts."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            max_tokens: 500,
+            temperature: 0.7,
+        });
 
-    console.log("GPT Response:", gptResponse.choices[0].message.content);
+        console.log("GPT Response:", gptResponse.choices[0].message.content);
 
-    const gptResult = gptResponse.choices[0].message.content;
+        const gptResult = gptResponse.choices[0].message.content;
 
-    const parsedResult = parseGPTResponse(gptResult);
-    return res.status(200).json(parsedResult);
-} catch (error) {
-    console.error(error);
-    throw new ExpressError(500, "An error occurred while processing the request.");
-}
+        const parsedResult = parseGPTResponse(gptResult);
+        return res.status(200).json(parsedResult);
+    } catch (error) {
+        console.error(error);
+        throw new ExpressError(500, "An error occurred while processing the request.");
+    }
 });
 
 function parseGPTResponse(responseText) {
     const regex = /Score:\s*(\d)\/7\nEnabling Skills:\nContent:\s*(\d)\/2\nGrammar:\s*(\d)\/2\nForm:\s*(\d)\/1\nVocabulary Range:\s*(\d)\/2/g;
     const matches = regex.exec(responseText);
-    
+
     if (!matches) {
         throw new Error('Unable to parse GPT response');
     }
@@ -158,12 +158,12 @@ function parseGPTResponse(responseText) {
 
 // ------------------- write email --------------------------------------
 
-module.exports.addWriteEmail = asyncWrapper(async(req, res)=>{
-    const {error, value} = writeEmailSchemaValidator.validate(req.body);
+module.exports.addWriteEmail = asyncWrapper(async (req, res) => {
+    const { error, value } = writeEmailSchemaValidator.validate(req.body);
 
-    const {type='writing', subtype='write_email', heading, prompt} = value;
+    const { type = 'writing', subtype = 'write_email', heading, prompt } = value;
 
-    if(error) throw new ExpressError(400, error.details[0].message);
+    if (error) throw new ExpressError(400, error.details[0].message);
 
     value.createdBy = req.user._id;
 
@@ -174,21 +174,21 @@ module.exports.addWriteEmail = asyncWrapper(async(req, res)=>{
         prompt,
     });
 
-    res.status(200).json({data: newQuestion});
+    res.status(200).json({ data: newQuestion });
 })
 
-module.exports.editWriteEmail = asyncWrapper(async(req, res)=>{
-    const {questionId, newData} = req.body;
-    
+module.exports.editWriteEmail = asyncWrapper(async (req, res) => {
+    const { questionId, newData } = req.body;
 
-    const {error, value} = writeEmailSchemaValidator.validate(newData);
 
-    const {type='writing', subtype='write_email', heading, prompt} = value;
-    
+    const { error, value } = writeEmailSchemaValidator.validate(newData);
 
-    if(error) throw new ExpressError(400, error.details[0].message);
+    const { type = 'writing', subtype = 'write_email', heading, prompt } = value;
 
-    if(!questionId) throw new ExpressError(401, "Question Id required");
+
+    if (error) throw new ExpressError(400, error.details[0].message);
+
+    if (!questionId) throw new ExpressError(401, "Question Id required");
 
     await questionsModel.findByIdAndUpdate(questionId, {
         type,
@@ -198,17 +198,116 @@ module.exports.editWriteEmail = asyncWrapper(async(req, res)=>{
     });
 
 
-    res.status(200).json({message: "Question Updated Successfully"});
+    res.status(200).json({ message: "Question Updated Successfully" });
 })
 
-module.exports.getWriteEmail = asyncWrapper(async(req, res)=>{
+module.exports.getWriteEmail = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const questions = await questionsModel.find({subtype: "write_email"})
-    .limit(limit)
-    .skip(skip)
-    .sort({createdAt: -1});
-    const questionsCount = await questionsModel.countDocuments({subtype: 'write_email'});
-    res.status(200).json({questions, questionsCount});
+    const questions = await questionsModel.find({ subtype: "write_email" })
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    const questionsCount = await questionsModel.countDocuments({ subtype: 'write_email' });
+    res.status(200).json({ questions, questionsCount });
 })
+
+
+module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
+    const { questionId, email } = req.body;
+
+    if (!questionId || !email) {
+        throw new ExpressError(400, "questionId and email are required!");
+    }
+
+    const question = await questionsModel.findById(questionId);
+    if (!question) {
+        throw new ExpressError(404, "Question not found");
+    }
+
+    const originalEmailTemplate = question.prompt;
+
+    const prompt = `
+    You are an expert at evaluating the structure, grammar, spelling, and overall quality of emails. Below is the original email template and the email written by the user.
+
+    Original Email Template: 
+    ${originalEmailTemplate}
+
+    User's Email: 
+    ${email}
+
+    Please evaluate the user's email and provide a score out of 15 in the following categories:
+    - Content (0-3)
+    - Grammar (0-2)
+    - Spelling (0-2)
+    - Form (0-2)
+    - Organization (0-2)
+    - Email Convention (0-2)
+    - Vocabulary Range (0-2)
+
+    Provide a breakdown of the score in the following format:
+    Score: X/15
+    Enabling Skills:
+    Content: X/3
+    Grammar: X/2
+    Spelling: X/2
+    Form: X/2
+    Organization: X/2
+    Email Convention: X/2
+    Vocabulary Range: X/2
+
+    Please also provide any feedback or suggestions for improvement.
+    `;
+
+    function parseGPTResponseForWriteEmail(responseText) {
+        const regex = /Score:\s*(\d+(\.\d+)?)\/15\s*Enabling Skills:\s*Content:\s*(\d+)\/3\s*Grammar:\s*(\d+)\/2\s*Spelling:\s*(\d+)\/2\s*Form:\s*(\d+)\/2\s*Organization:\s*(\d+)\/2\s*Email Convention:\s*(\d+)\/2\s*Vocabulary Range:\s*(\d+)\/2\s*Feedback:\s*([\s\S]+)/;
+
+        const matches = regex.exec(responseText);
+
+        if (!matches) {
+            throw new Error('Unable to parse GPT response');
+        }
+
+        return {
+            score: parseFloat(matches[1]),
+            content: parseInt(matches[3]),
+            grammar: parseInt(matches[4]),
+            spelling: parseInt(matches[5]),
+            form: parseFloat(matches[6]),
+            organization: parseInt(matches[7]),
+            emailConvention: parseInt(matches[8]),
+            vocabularyRange: parseInt(matches[9]),
+            feedback: matches[10].trim()
+        };
+    }
+
+
+    // try {
+        const gptResponse = await openai.chat.completions.create({
+            model: 'gpt-4',
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert at evaluating emails."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            max_tokens: 500,
+            temperature: 0.7,
+        });
+
+        // console.log("GPT Response:", gptResponse.choices[0].message.content);
+
+        const gptResult = gptResponse.choices[0].message.content;
+        const parsedResult = parseGPTResponseForWriteEmail(gptResult);
+
+        return res.status(200).json(parsedResult);
+    // } catch (error) {
+    //     console.error(error);
+    //     throw new ExpressError(500, "An error occurred while processing the request.");
+    // }
+});

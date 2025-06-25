@@ -1,4 +1,4 @@
-const { addSummarizeWrittenText, editSummarizeWrittenText, getSummarizeWrittenText, addWriteEmail, editWriteEmail, getWriteEmail, summarizeWrittenTextResult } = require('../../controllers/questionsControllers/written_test.controller');
+const { addSummarizeWrittenText, editSummarizeWrittenText, getSummarizeWrittenText, addWriteEmail, editWriteEmail, getWriteEmail, summarizeWrittenTextResult, writeEmailResult } = require('../../controllers/questionsControllers/written_test.controller');
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 
 const router = require('express').Router();
@@ -17,4 +17,6 @@ router.route('/write_email')
     .post(isUserLoggedIn, isAdminUser, addWriteEmail)
     .put(isUserLoggedIn, isAdminUser, editWriteEmail);
 
+
+router.post('/write_email/result', isUserLoggedIn, writeEmailResult);
 module.exports = router;

@@ -238,6 +238,25 @@ module.exports.editMcqSingle = asyncWrapper(async (req, res) => {
     res.status(200).json({ message: "Question Updated Successfully" });
 })
 
+module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
+    const { questionId, userAnswer } = req.body;
+
+    // Fetch the question from the database
+    const question = await questionsModel.findById(questionId);
+
+    // Check if the question exists
+    if (!question) {
+        throw new ExpressError(404, "Question not found!");
+    }
+
+    // Check if the user's answer matches the correct answer
+    const isCorrect = question.correctAnswers.includes(userAnswer);
+
+    return res.status(200).json({
+        isCorrect,
+        message: isCorrect ? "Correct answer!" : "Incorrect answer!"
+    });
+});
 
 
 // // -------------------------------------reading_fill_in_the_blanks----------------------------------
@@ -378,6 +397,7 @@ module.exports.getReorderParagraphs = asyncWrapper(async (req, res) => {
 
     res.status(200).json({ data: allReorderParagraphs, questionsCount });
 })
+
 module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
     const { questionId } = req.params;
     
@@ -410,7 +430,6 @@ module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
         }
     });
 });
-
 
 module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
     const { questionId, userReorderedOptions } = req.body;
@@ -449,3 +468,4 @@ module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
         correctAnswer: correctAnswers
     });
 });
+

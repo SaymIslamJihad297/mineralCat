@@ -1,4 +1,4 @@
-const { addFillInTheBlanks, getAllFillInTheBlanks, editFillIntheBlanks, addMcqMultiple, getMcqMultiple, editMcqMultiple, deleteMcqMultiple, deleteQuestion, addMcqSingle, getMcqSingle, editMcqSingle, addReOrderParagraphs, editReorderParagraphs, getReorderParagraphs, addReadingFillInTheBlanks, getReadingFillInTheBlanks, editReadingFillInTheBlanks, readingFillInTheBlanksResult, mcqMultipleChoiceResult, reorderParagraphsResult, getAReorderParagraph } = require('../../controllers/questionsControllers/reading_test.controller');
+const { addFillInTheBlanks, getAllFillInTheBlanks, editFillIntheBlanks, addMcqMultiple, getMcqMultiple, editMcqMultiple, deleteMcqMultiple, deleteQuestion, addMcqSingle, getMcqSingle, editMcqSingle, addReOrderParagraphs, editReorderParagraphs, getReorderParagraphs, addReadingFillInTheBlanks, getReadingFillInTheBlanks, editReadingFillInTheBlanks, readingFillInTheBlanksResult, mcqMultipleChoiceResult, reorderParagraphsResult, getAReorderParagraph, mcqSingleResult } = require('../../controllers/questionsControllers/reading_test.controller');
 const { isAdminUser, isUserLoggedIn } = require('../../middleware/middlewares');
 
 const router = require('express').Router();
@@ -24,6 +24,8 @@ router.route('/mcq_single')
     .get(isUserLoggedIn,getMcqSingle)
     .put(isUserLoggedIn, isAdminUser, editMcqSingle);
 
+
+router.post('/mcq_single/result', isUserLoggedIn, mcqSingleResult);
 
 router.route('/reading-fill-in-the-blanks')
     .post(isUserLoggedIn,isAdminUser,addReadingFillInTheBlanks)

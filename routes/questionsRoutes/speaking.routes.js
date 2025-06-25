@@ -1,4 +1,4 @@
-const { addReadAloud, getAllReadAloud, editReadAloud, addRepeatSentence, editRepeatSentence, getAllRepeatSentence, addRespondToASituation, editRespondToASituation, getAllRespondToASituation, addAnswerShortQuestion, editAnswerShortQuestion, getAllAnswerShortQuestion, readAloudResult } = require('../../controllers/questionsControllers/speaking.controller');
+const { addReadAloud, getAllReadAloud, editReadAloud, addRepeatSentence, editRepeatSentence, getAllRepeatSentence, addRespondToASituation, editRespondToASituation, getAllRespondToASituation, addAnswerShortQuestion, editAnswerShortQuestion, getAllAnswerShortQuestion, readAloudResult, respondToASituationResult } = require('../../controllers/questionsControllers/speaking.controller');
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 const upload = require('../../middleware/upload');
 
@@ -24,7 +24,7 @@ router.route('/respond-to-a-situation')
     .put(isUserLoggedIn , isAdminUser, upload.single('voice'),editRespondToASituation)
     .post(isUserLoggedIn , isAdminUser, upload.single('voice'),addRespondToASituation);
 
-
+router.post('/respond-to-a-situation/result', isUserLoggedIn, upload.single('voice'),respondToASituationResult);
 
 router.route('/answer_short_question')
     .get(isUserLoggedIn ,getAllAnswerShortQuestion)

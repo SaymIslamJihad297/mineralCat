@@ -168,6 +168,7 @@ module.exports.readAloudResult = asyncWrapper(async (req, res) => {
         throw new ExpressError(500, "Error assessing speech: " + errorMessage);
     }
 });
+
 // ------------------------------------------------------------repeatSentence---------------------------------------------------
 module.exports.addRepeatSentence = asyncWrapper(async (req, res) => {
 
@@ -358,7 +359,96 @@ module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
     res.status(200).json({ questions, questionsCount });
 })
 
+module.exports.respondToASituationResult = asyncWrapper(async(req, res)=>{
+    const { questionId, format, accent = 'us' } = req.body; // Default to 'us' accent
 
+    if (!questionId) {
+        throw new ExpressError(400, "questionId is required!");
+    }
+    if (!req.file) {
+        throw new ExpressError(400, "voice is required!");
+    }
+    if(path.extname(req.file.originalname)!=='.wav'){
+        throw new ExpressError(401, "only .wav file is supported");
+    }
+    // console.log(path.extname(req.file.originalname));
+    
+    if (!format) {
+        throw new ExpressError(400, "format is required!");
+    }
+    
+    let fileBuffer;
+    try {
+        fileBuffer = fs.readFileSync(req.file.path);
+    } catch (readError) {
+        console.error("Failed to read uploaded file from disk:", readError);
+        throw new ExpressError(500, "Failed to read uploaded file from disk: " + readError.message);
+    }
+
+    const fileBase64 = fileBuffer.toString('base64');
+
+    const question = await questionsModel.findById(questionId);
+    if (!question) {
+        try {
+            await fsPromises.unlink(req.file.path);
+        } catch (err) {
+            console.error("Failed to delete file:", err);
+        }
+        throw new ExpressError(404, "Question not found!");
+    }
+    console.log(question.prompt);
+
+    let data = JSON.stringify({
+        "audio_base64": fileBase64,
+        "audio_format": format,
+        // "user_metadata": {},
+        "expected_text": question.prompt
+    });
+
+    let config = {
+        method: 'post',
+        maxBodyLength: Infinity,
+        url: `${process.env.LANGUAGE_CONFIDENCE_BASE_URL}/speech-assessment/scripted/${accent}`, // Use accent parameter
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': process.env.LANGUAGE_CONFIDENCE_SECONDARY_API,
+        },
+        data: data
+    };
+
+    try {
+        const response = await axios.request(config);
+        // console.log("API Response:", JSON.stringify(response.data, null, 2));
+        
+        try {
+            await fsPromises.unlink(req.file.path);
+        } catch (err) {
+            console.error("Failed to delete temp file:", err);
+        }
+        
+        return res.status(200).json({ 
+            success: true,
+            data: response.data 
+        });
+    } catch (error) {
+        console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
+        
+        if (req.file && req.file.path) {
+            try {
+                await fsPromises.unlink(req.file.path);
+            } catch (err) {
+                console.error("Failed to delete temp file on error:", err);
+            }
+        }
+        
+        const errorMessage = error.response 
+            ? JSON.stringify(error.response.data)
+            : error.message;
+            
+        throw new ExpressError(500, "Error assessing speech: " + errorMessage);
+    }
+})
 // ------------------------------------------------------------answerShortQuestion---------------------------------------------------
 
 module.exports.addAnswerShortQuestion = asyncWrapper(async (req, res) => {

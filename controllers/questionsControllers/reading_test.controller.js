@@ -131,6 +131,42 @@ module.exports.editMcqMultiple = asyncWrapper(async(req, res)=>{
 })
 
 
+module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
+    const { questionId, selectedAnswers } = req.body;
+
+    // Step 1: Retrieve the question from the database
+    const question = await questionsModel.findById(questionId);
+    if (!question) {
+        throw new ExpressError(404, "Question Not Found!");
+    }
+
+    // Step 2: Initialize variables to track score
+    const correctAnswers = question.correctAnswers;
+    let score = 0;
+
+    // Step 3: Compare the selected answers to the correct ones
+    selectedAnswers.forEach((userAnswer) => {
+        if (correctAnswers.includes(userAnswer)) {
+            score++;
+        }
+    });
+
+    // Step 4: Calculate the result and prepare the response
+    const result = {
+        score,
+        totalCorrectAnswers: correctAnswers.length,
+        correctAnswersGiven: score === correctAnswers.length,
+    };
+
+    // Optional: Provide feedback
+    const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+    // Step 5: Return the result as a response
+    return res.status(200).json({
+        result,
+        feedback,
+    });
+});
 
 
 // -------------------------------------mcq_single----------------------------------

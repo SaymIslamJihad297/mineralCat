@@ -99,22 +99,22 @@ module.exports.EditmcqMultipleSchemaValidator = Joi.object({
 
 
 
-// module.exports.readingFillInTheBlanksSchemaValidator = Joi.object(
-//     {
-//         type: Joi.string().required(),
-//         subtype: Joi.string().required(),
-//         prompt: Joi.string().required(),
-//         blanks: Joi.array()
-//             .items(
-//                 Joi.object({
-//                     index: Joi.number().required(),
-//                     options: Joi.array().max(0),
-//                     correctAnswer: Joi.string().required()
-//                 })
-//             )
-//             .required(),
-//     }
-// )
+module.exports.readingFillInTheBlanksSchemaValidator = Joi.object(
+    {
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
+        prompt: Joi.string().required(),
+        blanks: Joi.array()
+            .items(
+                Joi.object({
+                    index: Joi.number().required(),
+                    options: Joi.array().required(),
+                    correctAnswer: Joi.string().required()
+                })
+            )
+            .required(),
+    }
+)
 
 
 

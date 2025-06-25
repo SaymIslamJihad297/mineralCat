@@ -3,6 +3,7 @@ const Question = require('../../models/questions.model');
 const { FillInTheBlanksQuestionSchemaValidator, mcqMultipleSchemaValidator, mcqSingleSchemaValidator, readingFillInTheBlanksSchemaValidator, reorderParagraphsSchemaValidator, EditFillInTheBlanksQuestionSchemaValidator, EditmcqMultipleSchemaValidator, EditmcqSingleSchemaValidator } = require('../../validations/schemaValidations');
 const ExpressError = require('../../utils/ExpressError');
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
+const questionsModel = require('../../models/questions.model');
 
 
 // ---------------------- reading and writing fill in the blanks-=----------------------
@@ -206,42 +207,77 @@ module.exports.editMcqSingle = asyncWrapper(async(req, res)=>{
 // // -------------------------------------reading_fill_in_the_blanks----------------------------------
 
 
-// module.exports.addReadingFillInTheBlanks = async(req, res)=>{
-//     const {error, value} = readingFillInTheBlanksSchemaValidator.validate(req.body);
+module.exports.addReadingFillInTheBlanks = asyncWrapper(async(req, res)=>{
+    const {error, value} = readingFillInTheBlanksSchemaValidator.validate(req.body);
 
-//     if(error) throw new ExpressError(400, error.details[0].message);
+    if(error) throw new ExpressError(400, error.details[0].message);
 
-//     value.createdBy = req.user._id;
-//     const newQuestion = await Question.create(value);
+    value.createdBy = req.user._id;
+    const newQuestion = await Question.create(value);
 
-//     // console.log(value);
-//     res.status(200).json({data: newQuestion});
-// }
+    // console.log(value);
+    res.status(200).json({data: newQuestion});
+})
 
-// module.exports.editReadingFillInTheBlanks = async(req, res)=>{
-//     const {questionId, newData} = req.body;
+module.exports.editReadingFillInTheBlanks = asyncWrapper(async(req, res)=>{
+    const {questionId, newData} = req.body;
     
 
-//     const {error, value} = readingFillInTheBlanksSchemaValidator.validate(newData);
+    const {error, value} = readingFillInTheBlanksSchemaValidator.validate(newData);
     
 
-//     if(error) throw new ExpressError(400, error.details[0].message);
+    if(error) throw new ExpressError(400, error.details[0].message);
 
-//     if(!questionId) throw new ExpressError(401, "Question Id required");
+    if(!questionId) throw new ExpressError(401, "Question Id required");
 
-//     await Question.findByIdAndUpdate(questionId, value);
-
-
-//     res.status(200).json({message: "Question Updated Successfully"});
-// }
+    await Question.findByIdAndUpdate(questionId, value);
 
 
-// module.exports.getReadingFillInTheBlanks = async(req, res)=>{
-//     const allReadingFillInTheBlanks = await Question.find({subtype: "reading_fill_in_the_blanks"}).sort({createdAt: -1});
+    res.status(200).json({message: "Question Updated Successfully"});
+})
 
-//     res.status(200).json({data: allReadingFillInTheBlanks});
-// }
 
+module.exports.getReadingFillInTheBlanks = asyncWrapper(async(req, res)=>{
+    const allReadingFillInTheBlanks = await Question.find({subtype: "reading_fill_in_the_blanks"}).sort({createdAt: -1});
+
+    res.status(200).json({data: allReadingFillInTheBlanks});
+})
+
+module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
+    const { questionId, blanks } = req.body;
+
+    // console.log(questionId, blanks);
+
+    const question = await questionsModel.findById(questionId);
+    if (!question) {
+        throw new ExpressError(404, "Question Not Found!");
+    }
+
+    let score = 0;
+    const totalBlanks = question.blanks.length;
+
+    blanks.forEach((userBlank) => {
+        const correctBlank = question.blanks.find(
+            (blank) => blank.index === userBlank.index
+        );
+
+        if (correctBlank && userBlank.selectedAnswer === correctBlank.correctAnswer) {
+            score++;
+        }
+    });
+
+    const result = {
+        score,
+        totalBlanks,
+    };
+
+    const feedback = `You scored ${score} out of ${totalBlanks}.`;
+
+    return res.status(200).json({
+        result,
+        feedback,
+    });
+});
 
 
 // -------------------------------------reorder_paragraphs----------------------------------

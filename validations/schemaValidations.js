@@ -117,8 +117,6 @@ module.exports.readingFillInTheBlanksSchemaValidator = Joi.object(
 )
 
 
-
-
 module.exports.reorderParagraphsSchemaValidator = Joi.object(
     {
         type: Joi.string().optional(),
@@ -127,14 +125,7 @@ module.exports.reorderParagraphsSchemaValidator = Joi.object(
         options: Joi.array().required(),
     }
 )
-module.exports.reorderParagraphsSchemaValidator = Joi.object(
-    {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
-        prompt: Joi.string().required(),
-        options: Joi.array().required(),
-    }
-)
+
 
 module.exports.addSummarizeTextSchemaValidator = Joi.object(
     {

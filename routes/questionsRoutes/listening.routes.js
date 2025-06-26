@@ -1,4 +1,4 @@
-const { addSummarizeSpokenText, addMultipleChoicesAndMultipleAnswers, getAllSummarizeSpokenText, getAllMultipleChoicesAndMultipleAnswers, addListeningFillInTheBlanks, getAllListeningFillInTheBlanks, addMultipleChoiceSingleAnswers, getAllMultipleChoiceSingleAnswers, editSummarizeSpokenText, editMultipleChoicesAndMultipleAnswers, editListeningFillInTheBlanks, editMultipleChoiceSingleAnswers, summerizeSpokenTextResult, multipleChoicesAndMultipleAnswersResult } = require('../../controllers/questionsControllers/spoken_test.controller');
+const { addSummarizeSpokenText, addMultipleChoicesAndMultipleAnswers, getAllSummarizeSpokenText, getAllMultipleChoicesAndMultipleAnswers, addListeningFillInTheBlanks, getAllListeningFillInTheBlanks, addMultipleChoiceSingleAnswers, getAllMultipleChoiceSingleAnswers, editSummarizeSpokenText, editMultipleChoicesAndMultipleAnswers, editListeningFillInTheBlanks, editMultipleChoiceSingleAnswers, summerizeSpokenTextResult, multipleChoicesAndMultipleAnswersResult, listeningFillInTheBlanksResult, multipleChoiceSingleAnswerResult } = require('../../controllers/questionsControllers/spoken_test.controller');
 const {isUserLoggedIn, isAdminUser} = require('../../middleware/middlewares');
 const upload = require('../../middleware/upload');
 
@@ -26,11 +26,13 @@ router.route('/listening-fill-in-the-blanks')
     .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editListeningFillInTheBlanks)
     .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addListeningFillInTheBlanks);
 
+router.post('/listening-fill-in-the-blanks/result', isUserLoggedIn, listeningFillInTheBlanksResult);
 
 router.route('/multiple-choice-single-answers')
     .get(isUserLoggedIn, getAllMultipleChoiceSingleAnswers)
     .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editMultipleChoiceSingleAnswers)
     .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addMultipleChoiceSingleAnswers);
 
+router.post('/multiple-choice-single-answers/result', isUserLoggedIn, multipleChoiceSingleAnswerResult);
 
 module.exports = router;

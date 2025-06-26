@@ -250,7 +250,7 @@ module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
             throw new ExpressError(404, 'Question not found!');
         }
 
-        if(question.subtype!=='summarize_spoken_text') {
+        if (question.subtype !== 'summarize_spoken_text') {
             throw new ExpressError(401, "this is not valid questionType for this route!")
         }
 
@@ -434,7 +434,7 @@ module.exports.multipleChoicesAndMultipleAnswersResult = asyncWrapper(async (req
     if (!question) {
         throw new ExpressError(404, "Question Not Found!");
     }
-    if(question.subtype!=='listening_multiple_choice_multiple_answers') {
+    if (question.subtype !== 'listening_multiple_choice_multiple_answers') {
         throw new ExpressError(401, "this is not valid questionType for this route!")
     }
 
@@ -546,6 +546,46 @@ module.exports.getAllListeningFillInTheBlanks = asyncWrapper(async (req, res) =>
     res.status(200).json({ questions, questionsCount });
 });
 
+module.exports.listeningFillInTheBlanksResult = asyncWrapper(async (req, res) => {
+    const { questionId, selectedAnswers } = req.body;
+
+    const question = await questionsModel.findById(questionId);
+    if (!question) {
+        throw new ExpressError(404, "Question Not Found!");
+    }
+
+    if (question.subtype !== 'listening_fill_in_the_blanks') {
+        throw new ExpressError(401, "This is not a valid questionType for this route!");
+    }
+    console.log(question);
+
+    const blanks = question.blanks;
+    console.log(blanks);
+
+    let score = 0;
+
+    selectedAnswers.forEach((userAnswer, index) => {
+        const correctAnswer = blanks[index]?.correctAnswer;
+
+        if (correctAnswer && correctAnswer === userAnswer) {
+            score++;
+        }
+    });
+
+    const result = {
+        score,
+        totalCorrectAnswers: blanks.length,
+        correctAnswersGiven: score === blanks.length,
+    };
+
+    const feedback = `You scored ${score} out of ${blanks.length}.`;
+
+    return res.status(200).json({
+        result,
+        feedback,
+    });
+});
+
 
 // --------------------------multiple choice single answers-----------------
 module.exports.addMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) => {
@@ -638,3 +678,43 @@ module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res)
     res.status(200).json({ questions, questionsCount });
 });
 
+module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async(req, res)=>{
+    const { questionId, selectedAnswers } = req.body;
+
+    console.log(selectedAnswers.length);
+
+    if(selectedAnswers.length > 1){
+        throw new ExpressError(401, "multiple answer is not allowed!");
+    }
+    
+
+    const question = await questionsModel.findById(questionId);
+    if (!question) {
+        throw new ExpressError(404, "Question Not Found!");
+    }
+    if (question.subtype !== 'listening_multiple_choice_single_answers') {
+        throw new ExpressError(401, "this is not valid questionType for this route!")
+    }
+
+    const correctAnswers = question.correctAnswers;
+    let score = 0;
+
+    selectedAnswers.forEach((userAnswer) => {
+        if (correctAnswers.includes(userAnswer)) {
+            score++;
+        }
+    });
+
+    const result = {
+        score,
+        totalCorrectAnswers: correctAnswers.length,
+        correctAnswersGiven: score === correctAnswers.length,
+    };
+
+    const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+    return res.status(200).json({
+        result,
+        feedback,
+    });
+})

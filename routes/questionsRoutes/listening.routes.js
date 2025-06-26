@@ -1,4 +1,4 @@
-const { addSummarizeSpokenText, addMultipleChoicesAndMultipleAnswers, getAllSummarizeSpokenText, getAllMultipleChoicesAndMultipleAnswers, addListeningFillInTheBlanks, getAllListeningFillInTheBlanks, addMultipleChoiceSingleAnswers, getAllMultipleChoiceSingleAnswers, editSummarizeSpokenText, editMultipleChoicesAndMultipleAnswers, editListeningFillInTheBlanks, editMultipleChoiceSingleAnswers } = require('../../controllers/questionsControllers/spoken_test.controller');
+const { addSummarizeSpokenText, addMultipleChoicesAndMultipleAnswers, getAllSummarizeSpokenText, getAllMultipleChoicesAndMultipleAnswers, addListeningFillInTheBlanks, getAllListeningFillInTheBlanks, addMultipleChoiceSingleAnswers, getAllMultipleChoiceSingleAnswers, editSummarizeSpokenText, editMultipleChoicesAndMultipleAnswers, editListeningFillInTheBlanks, editMultipleChoiceSingleAnswers, summerizeSpokenTextResult } = require('../../controllers/questionsControllers/spoken_test.controller');
 const {isUserLoggedIn, isAdminUser} = require('../../middleware/middlewares');
 const upload = require('../../middleware/upload');
 
@@ -11,6 +11,7 @@ router.route('/summarize-spoken-text')
     .post(isUserLoggedIn, isAdminUser, upload.single('voice'),addSummarizeSpokenText);
 
 
+router.post('/summarize-spoken-text/result', isUserLoggedIn, summerizeSpokenTextResult);
 
 
 router.route('/multiple-choice-multiple-answers')

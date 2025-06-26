@@ -134,34 +134,28 @@ module.exports.editMcqMultiple = asyncWrapper(async (req, res) => {
 module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
 
-    // Step 1: Retrieve the question from the database
     const question = await questionsModel.findById(questionId);
     if (!question) {
         throw new ExpressError(404, "Question Not Found!");
     }
 
-    // Step 2: Initialize variables to track score
     const correctAnswers = question.correctAnswers;
     let score = 0;
 
-    // Step 3: Compare the selected answers to the correct ones
     selectedAnswers.forEach((userAnswer) => {
         if (correctAnswers.includes(userAnswer)) {
             score++;
         }
     });
 
-    // Step 4: Calculate the result and prepare the response
     const result = {
         score,
         totalCorrectAnswers: correctAnswers.length,
         correctAnswersGiven: score === correctAnswers.length,
     };
 
-    // Optional: Provide feedback
     const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
 
-    // Step 5: Return the result as a response
     return res.status(200).json({
         result,
         feedback,
@@ -241,15 +235,12 @@ module.exports.editMcqSingle = asyncWrapper(async (req, res) => {
 module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
     const { questionId, userAnswer } = req.body;
 
-    // Fetch the question from the database
     const question = await questionsModel.findById(questionId);
 
-    // Check if the question exists
     if (!question) {
         throw new ExpressError(404, "Question not found!");
     }
 
-    // Check if the user's answer matches the correct answer
     const isCorrect = question.correctAnswers.includes(userAnswer);
 
     return res.status(200).json({
@@ -434,35 +425,28 @@ module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
 module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
     const { questionId, userReorderedOptions } = req.body;
 
-    // Validate input
     if (!questionId || !Array.isArray(userReorderedOptions)) {
         throw new ExpressError(400, "questionId and userReorderedOptions are required!");
     }
 
-    // Fetch the question from the database
     const question = await questionsModel.findById(questionId);
     if (!question) {
         throw new ExpressError(404, "Question not found");
     }
 
-    const correctAnswers = question.options;  // The original, correct order
-
-    // Check if the user's reordered options match the correct order
+    const correctAnswers = question.options;
     let score = 0;
 
-    // Compare user's answer with correct answers
     userReorderedOptions.forEach((userAnswer, index) => {
         if (userAnswer === correctAnswers[index]) {
             score += 1;
         }
     });
 
-    // Calculate the total score as a percentage of correct answers
     const totalScore = (score / correctAnswers.length) * 100;
 
-    // Send the result back to the user
     return res.status(200).json({
-        score: totalScore, // Percentage score
+        score: totalScore,
         message: `You scored ${score} out of ${correctAnswers.length} points.`,
         userAnswer: userReorderedOptions,
         correctAnswer: correctAnswers

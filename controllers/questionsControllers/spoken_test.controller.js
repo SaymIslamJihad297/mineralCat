@@ -250,6 +250,10 @@ module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
             throw new ExpressError(404, 'Question not found!');
         }
 
+        if(question.subtype!=='summarize_spoken_text') {
+            throw new ExpressError(401, "this is not valid questionType for this route!")
+        }
+
         const audioUrl = question.audioUrl;
         if (!audioUrl) {
             throw new ExpressError(404, 'Audio URL not found for this question!');
@@ -423,7 +427,39 @@ module.exports.getAllMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req
     res.status(200).json({ questions, questionsCount });
 })
 
+module.exports.multipleChoicesAndMultipleAnswersResult = asyncWrapper(async (req, res) => {
+    const { questionId, selectedAnswers } = req.body;
 
+    const question = await questionsModel.findById(questionId);
+    if (!question) {
+        throw new ExpressError(404, "Question Not Found!");
+    }
+    if(question.subtype!=='listening_multiple_choice_multiple_answers') {
+        throw new ExpressError(401, "this is not valid questionType for this route!")
+    }
+
+    const correctAnswers = question.correctAnswers;
+    let score = 0;
+
+    selectedAnswers.forEach((userAnswer) => {
+        if (correctAnswers.includes(userAnswer)) {
+            score++;
+        }
+    });
+
+    const result = {
+        score,
+        totalCorrectAnswers: correctAnswers.length,
+        correctAnswersGiven: score === correctAnswers.length,
+    };
+
+    const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+    return res.status(200).json({
+        result,
+        feedback,
+    });
+})
 
 // --------------------------listening fill in the blanks-----------------
 module.exports.addListeningFillInTheBlanks = asyncWrapper(async (req, res) => {

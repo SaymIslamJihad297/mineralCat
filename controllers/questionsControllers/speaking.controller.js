@@ -84,18 +84,23 @@ module.exports.readAloudResult = asyncWrapper(async (req, res) => {
     if (!questionId) {
         throw new ExpressError(400, "questionId is required!");
     }
+
+    if(question.subtype!=='read_aloud') {
+        throw new ExpressError(401, "this is not valid questionType for this route!")
+    }
+
     if (!req.file) {
         throw new ExpressError(400, "voice is required!");
     }
-    if(path.extname(req.file.originalname)!=='.wav'){
+    if (path.extname(req.file.originalname) !== '.wav') {
         throw new ExpressError(401, "only .wav file is supported");
     }
     // console.log(path.extname(req.file.originalname));
-    
+
     if (!format) {
         throw new ExpressError(400, "format is required!");
     }
-    
+
     let fileBuffer;
     try {
         fileBuffer = fs.readFileSync(req.file.path);
@@ -139,20 +144,20 @@ module.exports.readAloudResult = asyncWrapper(async (req, res) => {
     try {
         const response = await axios.request(config);
         // console.log("API Response:", JSON.stringify(response.data, null, 2));
-        
+
         try {
             await fsPromises.unlink(req.file.path);
         } catch (err) {
             console.error("Failed to delete temp file:", err);
         }
-        
-        return res.status(200).json({ 
+
+        return res.status(200).json({
             success: true,
-            data: response.data 
+            data: response.data
         });
     } catch (error) {
         console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
-        
+
         if (req.file && req.file.path) {
             try {
                 await fsPromises.unlink(req.file.path);
@@ -160,11 +165,11 @@ module.exports.readAloudResult = asyncWrapper(async (req, res) => {
                 console.error("Failed to delete temp file on error:", err);
             }
         }
-        
-        const errorMessage = error.response 
+
+        const errorMessage = error.response
             ? JSON.stringify(error.response.data)
             : error.message;
-            
+
         throw new ExpressError(500, "Error assessing speech: " + errorMessage);
     }
 });
@@ -359,24 +364,29 @@ module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
     res.status(200).json({ questions, questionsCount });
 })
 
-module.exports.respondToASituationResult = asyncWrapper(async(req, res)=>{
+module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
     const { questionId, format, accent = 'us' } = req.body; // Default to 'us' accent
 
     if (!questionId) {
         throw new ExpressError(400, "questionId is required!");
     }
+
+    if(question.subtype!=='respond_to_situation'){
+        throw new ExpressError(401, "this is not valid questionType for this route!")
+    }
+
     if (!req.file) {
         throw new ExpressError(400, "voice is required!");
     }
-    if(path.extname(req.file.originalname)!=='.wav'){
+    if (path.extname(req.file.originalname) !== '.wav') {
         throw new ExpressError(401, "only .wav file is supported");
     }
     // console.log(path.extname(req.file.originalname));
-    
+
     if (!format) {
         throw new ExpressError(400, "format is required!");
     }
-    
+
     let fileBuffer;
     try {
         fileBuffer = fs.readFileSync(req.file.path);
@@ -420,20 +430,20 @@ module.exports.respondToASituationResult = asyncWrapper(async(req, res)=>{
     try {
         const response = await axios.request(config);
         // console.log("API Response:", JSON.stringify(response.data, null, 2));
-        
+
         try {
             await fsPromises.unlink(req.file.path);
         } catch (err) {
             console.error("Failed to delete temp file:", err);
         }
-        
-        return res.status(200).json({ 
+
+        return res.status(200).json({
             success: true,
-            data: response.data 
+            data: response.data
         });
     } catch (error) {
         console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
-        
+
         if (req.file && req.file.path) {
             try {
                 await fsPromises.unlink(req.file.path);
@@ -441,11 +451,11 @@ module.exports.respondToASituationResult = asyncWrapper(async(req, res)=>{
                 console.error("Failed to delete temp file on error:", err);
             }
         }
-        
-        const errorMessage = error.response 
+
+        const errorMessage = error.response
             ? JSON.stringify(error.response.data)
             : error.message;
-            
+
         throw new ExpressError(500, "Error assessing speech: " + errorMessage);
     }
 })

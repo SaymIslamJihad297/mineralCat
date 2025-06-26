@@ -139,6 +139,10 @@ module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
         throw new ExpressError(404, "Question Not Found!");
     }
 
+    if(question.subtype!=='mcq_multiple'){
+        throw new ExpressError(401, "this is not valid questionType for this route!")
+    }
+
     const correctAnswers = question.correctAnswers;
     let score = 0;
 
@@ -240,6 +244,9 @@ module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
     if (!question) {
         throw new ExpressError(404, "Question not found!");
     }
+    if(question.subtype!=='mcq_single'){
+        throw new ExpressError(401, "this is not valid questionType for this route!")
+    }
 
     const isCorrect = question.correctAnswers.includes(userAnswer);
 
@@ -297,6 +304,10 @@ module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
     const question = await questionsModel.findById(questionId);
     if (!question) {
         throw new ExpressError(404, "Question Not Found!");
+    }
+
+    if(question.subtype!=='reading_fill_in_the_blanks'){
+        throw new ExpressError(401, "this is not valid questionType for this route!")
     }
 
     let score = 0;
@@ -432,6 +443,10 @@ module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
     const question = await questionsModel.findById(questionId);
     if (!question) {
         throw new ExpressError(404, "Question not found");
+    }
+
+    if(question.subtype!=='reorder_paragraphs'){
+        throw new ExpressError(401, "this is not valid questionType for this route!")
     }
 
     const correctAnswers = question.options;

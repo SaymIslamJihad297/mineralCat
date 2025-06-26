@@ -80,6 +80,13 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
         throw new ExpressError(404, "Question not found");
     }
 
+    if(question.subtype!=='summarize_written_text'){
+        throw new ExpressError(401, "this is not valid questionType for this route!")
+    }
+
+    console.log(question.subtype);
+    
+
     const originalParagraph = question.text;
 
     const prompt = `
@@ -224,6 +231,9 @@ module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
     const question = await questionsModel.findById(questionId);
     if (!question) {
         throw new ExpressError(404, "Question not found");
+    }
+    if(question.subtype!=='write_email'){
+        throw new ExpressError(401, "this is not valid questionType for this route!")
     }
 
     const originalEmailTemplate = question.prompt;

@@ -1,62 +1,284 @@
 const questionsModel = require("../../models/questions.model");
 const ExpressError = require("../../utils/ExpressError");
-const { readAloudSchemaValidator, repeatSentenceSchemaValidator, respondToASituationSchemaValidator, answerShortQuestionSchemaValidator, editreadAloudSchemaValidator, editrepeatSentenceSchemaValidator, editrespondToASituationSchemaValidator, editanswerShortQuestionSchemaValidator } = require("../../validations/schemaValidations");
+const { 
+    readAloudSchemaValidator, 
+    repeatSentenceSchemaValidator, 
+    respondToASituationSchemaValidator, 
+    answerShortQuestionSchemaValidator, 
+    editreadAloudSchemaValidator, 
+    editrepeatSentenceSchemaValidator, 
+    editrespondToASituationSchemaValidator, 
+    editanswerShortQuestionSchemaValidator 
+} = require("../../validations/schemaValidations");
 const cloudinary = require('../../middleware/cloudinary.config');
 const path = require('path');
 const fs = require('node:fs');
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const { default: axios } = require("axios");
 const fsPromises = require('fs').promises;
+const https = require('https');
 
-// ------------------------------------------------------------readAloud---------------------------------------------------
-module.exports.addReadAloud = asyncWrapper(async (req, res) => {
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
 
-    const { error, value } = readAloudSchemaValidator.validate(req.body);
+// File operations
+async function safeDeleteFile(filePath) {
+    if (filePath) {
+        try {
+            await fsPromises.unlink(filePath);
+        } catch (err) {
+            console.error("Failed to delete temp file:", err);
+        }
+    }
+}
+
+function readFileAsBase64(filePath) {
+    try {
+        const fileBuffer = fs.readFileSync(filePath);
+        return fileBuffer.toString('base64');
+    } catch (readError) {
+        console.error("Failed to read file from disk:", readError);
+        throw new ExpressError(500, "Failed to read file from disk: " + readError.message);
+    }
+}
+
+async function uploadToCloudinary(file, folderName) {
+    if (!file) throw new ExpressError(400, 'Please upload a file');
+    
+    const result = await cloudinary.uploader.upload(file.path, {
+        resource_type: 'auto',
+        public_id: `${path.basename(file.originalname, path.extname(file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        folder: `listening_test/${folderName}`,
+        type: 'authenticated',
+    });
+
+    fs.unlinkSync(file.path);
+    return result.secure_url;
+}
+
+const downloadAndSaveAudio = async (audioUrl) => {
+    return new Promise((resolve, reject) => {
+        const fileName = path.basename(audioUrl);
+        const filePath = path.join('downloads', fileName);
+
+        if (!fs.existsSync('downloads')) {
+            fs.mkdirSync('downloads');
+        }
+
+        const fileStream = fs.createWriteStream(filePath);
+
+        https.get(audioUrl, (response) => {
+            if (response.statusCode !== 200) {
+                reject(new Error(`Failed to download audio: ${response.statusCode}`));
+                return;
+            }
+
+            response.pipe(fileStream);
+
+            fileStream.on('finish', () => {
+                console.log(`Audio downloaded and saved to ${filePath}`);
+                resolve(filePath);
+            });
+
+            fileStream.on('error', (err) => {
+                reject(new Error('Error saving audio file: ' + err.message));
+            });
+        }).on('error', (err) => {
+            reject(new Error('Request error: ' + err.message));
+        });
+    });
+};
+
+const detectAudioFormat = (audioUrl, contentType) => {
+    const extension = path.extname(audioUrl).toLowerCase();
+
+    if (extension === '.mp3' || contentType?.includes('mpeg')) return 'mp3';
+    if (extension === '.wav' || contentType?.includes('wav')) return 'wav';
+    if (extension === '.m4a' || contentType?.includes('m4a')) return 'm4a';
+    if (extension === '.ogg' || contentType?.includes('ogg')) return 'ogg';
+
+    return 'mp3';
+};
+
+const extractTranscript = (apiResponse) => {
+    try {
+        if (apiResponse.vocabulary?.feedback?.tagged_transcript) {
+            return apiResponse.vocabulary.feedback.tagged_transcript;
+        }
+
+        if (apiResponse.fluency?.feedback?.tagged_transcript) {
+            return apiResponse.fluency.feedback.tagged_transcript
+                .replace(/<discourse-marker[^>]*>(.*?)<\/discourse-marker>/g, '$1')
+                .replace(/<[^>]*>/g, '')
+                .trim();
+        }
+
+        if (apiResponse.metadata?.predicted_text) {
+            return apiResponse.metadata.predicted_text;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error extracting transcript:', error);
+        return null;
+    }
+};
+
+async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, accent) {
+    const data = JSON.stringify({
+        "audio_base64": audioBase64,
+        "audio_format": audioFormat,
+        "expected_text": expectedText,
+    });
+
+    const config = {
+        method: 'post',
+        maxBodyLength: Infinity,
+        url: `${process.env.LANGUAGE_CONFIDENCE_BASE_URL}/speech-assessment/scripted/${accent}`,
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': process.env.LANGUAGE_CONFIDENCE_SECONDARY_API,
+        },
+        data: data
+    };
+
+    try {
+        const response = await axios.request(config);
+        return response.data;
+    } catch (error) {
+        console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
+        
+        const errorMessage = error.response
+            ? JSON.stringify(error.response.data)
+            : error.message;
+        
+        throw new ExpressError(500, "Error assessing speech: " + errorMessage);
+    }
+}
+
+async function addQuestion(validator, data, userId, audioFile = null, folderName = null) {
+    const { error, value } = validator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
-    const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = value;
-
-    const userId = req.user._id;
-
-    const newQuestion = await questionsModel.create({
-        type,
-        subtype,
-        heading,
-        prompt,
+    let questionData = {
+        ...value,
         createdBy: userId,
-    });
+    };
+
+    if (audioFile && folderName) {
+        questionData.audioUrl = await uploadToCloudinary(audioFile, folderName);
+    }
+
+    const newQuestion = await questionsModel.create(questionData);
+    return newQuestion;
+}
+
+async function editQuestion(validator, questionId, data, userId, audioFile = null, folderName = null) {
+    const { error, value } = validator.validate(data);
+    if (error) throw new ExpressError(400, error.details[0].message);
+
+    if (!questionId) throw new ExpressError(400, "Question ID is required");
+
+    if (audioFile && folderName) {
+        value.audioUrl = await uploadToCloudinary(audioFile, folderName);
+    }
+
+    const question = await questionsModel.findByIdAndUpdate(
+        questionId,
+        { ...value, createdBy: userId },
+        { new: true }
+    );
+
+    if (!question) throw new ExpressError('Question not found', 404);
+    return question;
+}
+
+async function getAllQuestions(subtype, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({ subtype })
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    
+    if (!questions) throw new ExpressError('No question found', 404);
+    
+    const questionsCount = await questionsModel.countDocuments({ subtype });
+    return { questions, questionsCount };
+}
+
+async function handleSpeechAssessment(req, res, expectedSubtype, useDirectPrompt = true) {
+    const { questionId, accent = 'us', format } = req.body;
+    let userFilePath = req.file?.path;
+
+    try {
+        if (!questionId) throw new ExpressError(400, "questionId is required!");
+        if (!req.file) throw new ExpressError(400, "voice is required!");
+
+        const question = await questionsModel.findById(questionId);
+        if (!question) {
+            throw new ExpressError(404, "Question not found!");
+        }
+        
+        if (question.subtype !== expectedSubtype) {
+            throw new ExpressError(401, "this is not valid questionType for this route!");
+        }
+
+        const userFileBase64 = readFileAsBase64(userFilePath);
+        const audioFormat = format || detectAudioFormat(userFilePath);
+        
+        const expectedText = useDirectPrompt ? question.prompt : question.prompt;
+
+        const response = await callSpeechAssessmentAPI(
+            userFileBase64,
+            audioFormat,
+            expectedText,
+            accent
+        );
+
+        await safeDeleteFile(userFilePath);
+
+        return res.status(200).json({
+            success: true,
+            data: response
+        });
+
+    } catch (error) {
+        await safeDeleteFile(userFilePath);
+        throw error;
+    }
+}
+
+// ============================================================
+// READ ALOUD FUNCTIONS
+// ============================================================
+
+module.exports.addReadAloud = asyncWrapper(async (req, res) => {
+    const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = req.body;
+    const newQuestion = await addQuestion(
+        readAloudSchemaValidator, 
+        { type, subtype, heading, prompt }, 
+        req.user._id
+    );
 
     return res.status(200).json({
         message: "Question added successfully",
         question: newQuestion,
     });
-
-})
+});
 
 module.exports.editReadAloud = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
-
-    const { error, value } = editreadAloudSchemaValidator.validate(data);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = value;
-
-
-    if (!questionId) throw new ExpressError(400, "Question ID is required");
-
-    const question = await questionsModel.findByIdAndUpdate(
+    const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = data;
+    
+    const question = await editQuestion(
+        editreadAloudSchemaValidator,
         questionId,
-        {
-            type,
-            subtype,
-            heading,
-            prompt,
-            createdBy: req.user._id,
-        },
-        { new: true }
+        { type, subtype, heading, prompt },
+        req.user._id
     );
-
-    if (!question) throw new ExpressError('Question not found', 404);
 
     return res.status(200).json({
         message: "Question updated successfully",
@@ -64,491 +286,209 @@ module.exports.editReadAloud = asyncWrapper(async (req, res) => {
     });
 });
 
-module.exports.getAllReadAloud = async (req, res) => {
+module.exports.getAllReadAloud = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const questions = await questionsModel.find({ subtype: 'read_aloud' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'read_aloud' });
-    if (!questions) throw new ExpressError('No question found', 404);
-    res.status(200).json({ questions, questionsCount });
-}
-
-module.exports.readAloudResult = asyncWrapper(async (req, res) => {
-
-    const { questionId, format, accent = 'us' } = req.body; // Default to 'us' accent
-
-    if (!questionId) {
-        throw new ExpressError(400, "questionId is required!");
-    }
-
-    if(question.subtype!=='read_aloud') {
-        throw new ExpressError(401, "this is not valid questionType for this route!")
-    }
-
-    if (!req.file) {
-        throw new ExpressError(400, "voice is required!");
-    }
-    if (path.extname(req.file.originalname) !== '.wav') {
-        throw new ExpressError(401, "only .wav file is supported");
-    }
-    // console.log(path.extname(req.file.originalname));
-
-    if (!format) {
-        throw new ExpressError(400, "format is required!");
-    }
-
-    let fileBuffer;
-    try {
-        fileBuffer = fs.readFileSync(req.file.path);
-    } catch (readError) {
-        console.error("Failed to read uploaded file from disk:", readError);
-        throw new ExpressError(500, "Failed to read uploaded file from disk: " + readError.message);
-    }
-
-    const fileBase64 = fileBuffer.toString('base64');
-
-    const question = await questionsModel.findById(questionId);
-    if (!question) {
-        try {
-            await fsPromises.unlink(req.file.path);
-        } catch (err) {
-            console.error("Failed to delete file:", err);
-        }
-        throw new ExpressError(404, "Question not found!");
-    }
-    console.log(question.prompt);
-
-    let data = JSON.stringify({
-        "audio_base64": fileBase64,
-        "audio_format": format,
-        // "user_metadata": {},
-        "expected_text": question.prompt
-    });
-
-    let config = {
-        method: 'post',
-        maxBodyLength: Infinity,
-        url: `${process.env.LANGUAGE_CONFIDENCE_BASE_URL}/speech-assessment/scripted/${accent}`, // Use accent parameter
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'api-key': process.env.LANGUAGE_CONFIDENCE_SECONDARY_API,
-        },
-        data: data
-    };
-
-    try {
-        const response = await axios.request(config);
-        // console.log("API Response:", JSON.stringify(response.data, null, 2));
-
-        try {
-            await fsPromises.unlink(req.file.path);
-        } catch (err) {
-            console.error("Failed to delete temp file:", err);
-        }
-
-        return res.status(200).json({
-            success: true,
-            data: response.data
-        });
-    } catch (error) {
-        console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
-
-        if (req.file && req.file.path) {
-            try {
-                await fsPromises.unlink(req.file.path);
-            } catch (err) {
-                console.error("Failed to delete temp file on error:", err);
-            }
-        }
-
-        const errorMessage = error.response
-            ? JSON.stringify(error.response.data)
-            : error.message;
-
-        throw new ExpressError(500, "Error assessing speech: " + errorMessage);
-    }
+    const result = await getAllQuestions('read_aloud', page, limit);
+    res.status(200).json(result);
 });
 
-// ------------------------------------------------------------repeatSentence---------------------------------------------------
+module.exports.readAloudResult = asyncWrapper(async (req, res) => {
+    return handleSpeechAssessment(req, res, 'read_aloud');
+});
+
+// ============================================================
+// REPEAT SENTENCE FUNCTIONS
+// ============================================================
+
 module.exports.addRepeatSentence = asyncWrapper(async (req, res) => {
-
-    const { error, value } = repeatSentenceSchemaValidator.validate(req.body);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    const { type = 'speaking', subtype = 'repeat_sentence', heading } = value;
-
-    const folderName = 'repeatSentence';
-    if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
-    const userId = req.user._id;
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-        resource_type: 'auto',
-        public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-        folder: `listening_test/${folderName}`,
-        type: 'authenticated',
-    })
-
-    // console.log(result);
-
-
-    fs.unlinkSync(req.file.path);
-
-    const newQuestion = await questionsModel.create({
-        type,
-        subtype,
-        heading,
-        audioUrl: result.secure_url,
-        createdBy: userId,
-    });
+    const { type = 'speaking', subtype = 'repeat_sentence', heading } = req.body;
+    const newQuestion = await addQuestion(
+        repeatSentenceSchemaValidator,
+        { type, subtype, heading },
+        req.user._id,
+        req.file,
+        'repeatSentence'
+    );
 
     return res.status(200).json({
         message: "Question added successfully",
         question: newQuestion,
     });
-})
-
+});
 
 module.exports.editRepeatSentence = asyncWrapper(async (req, res) => {
-
     const { questionId, ...data } = req.body;
+    data.type = 'speaking';
+    data.subtype = 'repeat_sentence';
 
-    // Validate incoming data (excluding questionId)
-    const { error, value } = editrepeatSentenceSchemaValidator.validate(data);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(400, "Question ID is required");
-
-    if (req.file !== undefined) {
-        const folderName = 'repeatSentence';
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            resource_type: 'auto',
-            public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-            folder: `listening_test/${folderName}`,
-            type: 'authenticated',
-        })
-
-        fs.unlinkSync(req.file.path);
-        value.audioUrl = result.secure_url;
-    }
-    value.type = 'speaking';
-    value.subtype = 'repeat_sentence';
-
-    const question = await questionsModel.findByIdAndUpdate(
+    const question = await editQuestion(
+        editrepeatSentenceSchemaValidator,
         questionId,
-        {
-            ...value,
-            createdBy: req.user._id,
-        },
-        { new: true }
+        data,
+        req.user._id,
+        req.file,
+        'repeatSentence'
     );
-
-    if (!question) throw new ExpressError('Question not found', 404);
 
     return res.status(200).json({
         message: "Question updated successfully",
         question,
     });
-})
+});
 
 module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const result = await getAllQuestions('repeat_sentence', page, limit);
+    res.status(200).json(result);
+});
 
-    const questions = await questionsModel.find({ subtype: 'repeat_sentence' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'repeat_sentence' });
-    res.status(200).json({ questions, questionsCount });
-})
+module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
+    const { questionId, accent = 'us' } = req.body;
+    let mainAudioFile = null;
+    let userFilePath = req.file?.path;
 
+    try {
+        if (!questionId) throw new ExpressError(400, "questionId is required!");
+        if (!req.file) throw new ExpressError(400, "voice is required!");
 
-// ------------------------------------------------------------respondToASituation---------------------------------------------------
+        const question = await questionsModel.findById(questionId);
+        if (!question) throw new ExpressError(404, "Question Not Found!");
 
+        mainAudioFile = await downloadAndSaveAudio(question.audioUrl);
+        const format = detectAudioFormat(question.audioUrl);
+        const fileBase64 = readFileAsBase64(mainAudioFile);
+
+        const firstApiResponse = await callSpeechAssessmentAPI(
+            fileBase64, 
+            format, 
+            "lksdjflksjdf", 
+            accent
+        );
+
+        await safeDeleteFile(mainAudioFile);
+        mainAudioFile = null;
+
+        const userfileBase64 = readFileAsBase64(userFilePath);
+        const expectedText = extractTranscript(firstApiResponse);
+        const finalFormat = detectAudioFormat(userFilePath);
+
+        const finalResponse = await callSpeechAssessmentAPI(
+            userfileBase64,
+            finalFormat,
+            expectedText,
+            accent
+        );
+
+        await safeDeleteFile(userFilePath);
+        
+        return res.status(200).json({
+            success: true,
+            data: finalResponse
+        });
+
+    } catch (error) {
+        await safeDeleteFile(mainAudioFile);
+        await safeDeleteFile(userFilePath);
+        throw error;
+    }
+});
+
+// ============================================================
+// RESPOND TO SITUATION FUNCTIONS
+// ============================================================
 
 module.exports.addRespondToASituation = asyncWrapper(async (req, res) => {
-    const { error, value } = respondToASituationSchemaValidator.validate(req.body);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    const { type = 'speaking', subtype = 'respond_to_situation', heading, prompt } = value;
-
-    if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
-
-    const folderName = 'respondToASituation';
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-        resource_type: 'auto',
-        public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-        folder: `listening_test/${folderName}`,
-        type: 'authenticated',
-    })
-
-    fs.unlinkSync(req.file.path);
-
-    const userId = req.user._id;
-
-    const newQuestion = await questionsModel.create({
-        type,
-        subtype,
-        heading,
-        prompt,
-        audioUrl: result.secure_url,
-        createdBy: userId,
-    });
+    const { type = 'speaking', subtype = 'respond_to_situation', heading, prompt } = req.body;
+    const newQuestion = await addQuestion(
+        respondToASituationSchemaValidator,
+        { type, subtype, heading, prompt },
+        req.user._id,
+        req.file,
+        'respondToASituation'
+    );
 
     return res.status(200).json({
         message: "Question added successfully",
         question: newQuestion,
     });
-
-})
-
+});
 
 module.exports.editRespondToASituation = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
+    data.type = 'speaking';
+    data.subtype = 'respond_to_situation';
 
-    const { error, value } = editrespondToASituationSchemaValidator.validate(data);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(400, "Question ID is required");
-
-    if (req.file !== undefined) {
-        const folderName = 'respondToASituation';
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            resource_type: 'auto',
-            public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-            folder: `listening_test/${folderName}`,
-            type: 'authenticated',
-        })
-
-        fs.unlinkSync(req.file.path);
-        value.audioUrl = result.secure_url;
-    }
-    value.type = 'speaking';
-    value.subtype = 'respond_to_situation';
-
-    const question = await questionsModel.findByIdAndUpdate(
+    const question = await editQuestion(
+        editrespondToASituationSchemaValidator,
         questionId,
-        {
-            ...value,
-            createdBy: req.user._id,
-        },
-        { new: true }
+        data,
+        req.user._id,
+        req.file,
+        'respondToASituation'
     );
-
-    if (!question) throw new ExpressError('Question not found', 404);
 
     return res.status(200).json({
         message: "Question updated successfully",
         question,
     });
-})
-
+});
 
 module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const questions = await questionsModel.find({ subtype: 'respond_to_situation' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'respond_to_situation' });
-    res.status(200).json({ questions, questionsCount });
-})
+    const result = await getAllQuestions('respond_to_situation', page, limit);
+    res.status(200).json(result);
+});
 
 module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
-    const { questionId, format, accent = 'us' } = req.body; // Default to 'us' accent
-
-    if (!questionId) {
-        throw new ExpressError(400, "questionId is required!");
-    }
-
-    if(question.subtype!=='respond_to_situation'){
-        throw new ExpressError(401, "this is not valid questionType for this route!")
-    }
-
-    if (!req.file) {
-        throw new ExpressError(400, "voice is required!");
-    }
-    if (path.extname(req.file.originalname) !== '.wav') {
+    if (req.file && path.extname(req.file.originalname) !== '.wav') {
         throw new ExpressError(401, "only .wav file is supported");
     }
-    // console.log(path.extname(req.file.originalname));
+    
+    return handleSpeechAssessment(req, res, 'respond_to_situation');
+});
 
-    if (!format) {
-        throw new ExpressError(400, "format is required!");
-    }
-
-    let fileBuffer;
-    try {
-        fileBuffer = fs.readFileSync(req.file.path);
-    } catch (readError) {
-        console.error("Failed to read uploaded file from disk:", readError);
-        throw new ExpressError(500, "Failed to read uploaded file from disk: " + readError.message);
-    }
-
-    const fileBase64 = fileBuffer.toString('base64');
-
-    const question = await questionsModel.findById(questionId);
-    if (!question) {
-        try {
-            await fsPromises.unlink(req.file.path);
-        } catch (err) {
-            console.error("Failed to delete file:", err);
-        }
-        throw new ExpressError(404, "Question not found!");
-    }
-    console.log(question.prompt);
-
-    let data = JSON.stringify({
-        "audio_base64": fileBase64,
-        "audio_format": format,
-        // "user_metadata": {},
-        "expected_text": question.prompt
-    });
-
-    let config = {
-        method: 'post',
-        maxBodyLength: Infinity,
-        url: `${process.env.LANGUAGE_CONFIDENCE_BASE_URL}/speech-assessment/scripted/${accent}`, // Use accent parameter
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'api-key': process.env.LANGUAGE_CONFIDENCE_SECONDARY_API,
-        },
-        data: data
-    };
-
-    try {
-        const response = await axios.request(config);
-        // console.log("API Response:", JSON.stringify(response.data, null, 2));
-
-        try {
-            await fsPromises.unlink(req.file.path);
-        } catch (err) {
-            console.error("Failed to delete temp file:", err);
-        }
-
-        return res.status(200).json({
-            success: true,
-            data: response.data
-        });
-    } catch (error) {
-        console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
-
-        if (req.file && req.file.path) {
-            try {
-                await fsPromises.unlink(req.file.path);
-            } catch (err) {
-                console.error("Failed to delete temp file on error:", err);
-            }
-        }
-
-        const errorMessage = error.response
-            ? JSON.stringify(error.response.data)
-            : error.message;
-
-        throw new ExpressError(500, "Error assessing speech: " + errorMessage);
-    }
-})
-// ------------------------------------------------------------answerShortQuestion---------------------------------------------------
+// ============================================================
+// ANSWER SHORT QUESTION FUNCTIONS
+// ============================================================
 
 module.exports.addAnswerShortQuestion = asyncWrapper(async (req, res) => {
-    const { error, value } = answerShortQuestionSchemaValidator.validate(req.body);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    const { type = 'speaking', subtype = 'answer_short_question', heading } = value;
-
-    if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
-    const folderName = 'answerShortQuestion';
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-        resource_type: 'auto',
-        public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-        folder: `listening_test/${folderName}`,
-        type: 'authenticated',
-    })
-
-    const userId = req.user._id;
-
-    fs.unlinkSync(req.file.path);
-
-    const newQuestion = await questionsModel.create({
-        type,
-        subtype,
-        heading,
-        audioUrl: result.secure_url,
-        createdBy: userId,
-    });
+    const { type = 'speaking', subtype = 'answer_short_question', heading } = req.body;
+    const newQuestion = await addQuestion(
+        answerShortQuestionSchemaValidator,
+        { type, subtype, heading },
+        req.user._id,
+        req.file,
+        'answerShortQuestion'
+    );
 
     return res.status(200).json({
         message: "Question added successfully",
         question: newQuestion,
     });
-
-})
+});
 
 module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
+    data.type = 'speaking';
+    data.subtype = 'answer_short_question';
 
-    const { error, value } = editanswerShortQuestionSchemaValidator.validate(data);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(400, "Question ID is required");
-
-    if (req.file !== undefined) {
-        const folderName = 'answerShortQuestion';
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            resource_type: 'auto',
-            public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-            folder: `listening_test/${folderName}`,
-            type: 'authenticated',
-        })
-
-        fs.unlinkSync(req.file.path);
-        value.audioUrl = result.secure_url;
-    }
-    value.type = 'speaking';
-    value.subtype = 'answer_short_question';
-
-    const question = await questionsModel.findByIdAndUpdate(
+    const question = await editQuestion(
+        editanswerShortQuestionSchemaValidator,
         questionId,
-        {
-            ...value,
-            createdBy: req.user._id,
-        },
-        { new: true }
+        data,
+        req.user._id,
+        req.file,
+        'answerShortQuestion'
     );
-
-    if (!question) throw new ExpressError('Question not found', 404);
 
     return res.status(200).json({
         message: "Question updated successfully",
         question,
     });
-})
-
+});
 
 module.exports.getAllAnswerShortQuestion = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const questions = await questionsModel.find({ subtype: 'answer_short_question' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'respond_to_situation' });
-
-    res.status(200).json({ questions, questionsCount });
-})
-
-
+    const result = await getAllQuestions('answer_short_question', page, limit);
+    res.status(200).json(result);
+});

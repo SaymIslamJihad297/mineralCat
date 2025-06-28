@@ -1,4 +1,4 @@
-const { addReadAloud, getAllReadAloud, editReadAloud, addRepeatSentence, editRepeatSentence, getAllRepeatSentence, addRespondToASituation, editRespondToASituation, getAllRespondToASituation, addAnswerShortQuestion, editAnswerShortQuestion, getAllAnswerShortQuestion, readAloudResult, respondToASituationResult } = require('../../controllers/questionsControllers/speaking.controller');
+const { addReadAloud, getAllReadAloud, editReadAloud, addRepeatSentence, editRepeatSentence, getAllRepeatSentence, addRespondToASituation, editRespondToASituation, getAllRespondToASituation, addAnswerShortQuestion, editAnswerShortQuestion, getAllAnswerShortQuestion, readAloudResult, respondToASituationResult, repeatSentenceResult } = require('../../controllers/questionsControllers/speaking.controller');
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 const upload = require('../../middleware/upload');
 
@@ -18,6 +18,8 @@ router.route('/repeat_sentence')
     .put(isUserLoggedIn , isAdminUser, upload.single('voice'),editRepeatSentence)
     .post(isUserLoggedIn , isAdminUser, upload.single('voice'),addRepeatSentence);
 
+
+router.post('/repeat_sentence/result', isUserLoggedIn, upload.single('voice'),repeatSentenceResult);
 
 router.route('/respond-to-a-situation')
     .get(isUserLoggedIn ,getAllRespondToASituation)

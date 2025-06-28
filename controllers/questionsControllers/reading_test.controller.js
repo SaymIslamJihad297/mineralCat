@@ -1,419 +1,200 @@
 const mongoose = require('mongoose');
 const Question = require('../../models/questions.model');
-const { FillInTheBlanksQuestionSchemaValidator, mcqMultipleSchemaValidator, mcqSingleSchemaValidator, readingFillInTheBlanksSchemaValidator, reorderParagraphsSchemaValidator, EditFillInTheBlanksQuestionSchemaValidator, EditmcqMultipleSchemaValidator, EditmcqSingleSchemaValidator } = require('../../validations/schemaValidations');
+const { 
+    FillInTheBlanksQuestionSchemaValidator, 
+    mcqMultipleSchemaValidator, 
+    mcqSingleSchemaValidator, 
+    readingFillInTheBlanksSchemaValidator, 
+    reorderParagraphsSchemaValidator, 
+    EditFillInTheBlanksQuestionSchemaValidator, 
+    EditmcqMultipleSchemaValidator, 
+    EditmcqSingleSchemaValidator 
+} = require('../../validations/schemaValidations');
 const ExpressError = require('../../utils/ExpressError');
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
-const questionsModel = require('../../models/questions.model');
 
-
-// ---------------------- reading and writing fill in the blanks-=----------------------
-module.exports.addFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const { error, value } = FillInTheBlanksQuestionSchemaValidator.validate(req.body);
-
+// Helper to validate and save questions
+async function validateAndSaveQuestion(validator, data, userId, subtype) {
+    const { error, value } = validator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
-    const { type = 'reading', subtype = 'rw_fill_in_the_blanks', prompt, blanks, heading } = value;
 
-    const userId = req.user._id;
+    value.createdBy = userId;
+    value.subtype = subtype;
 
-    const newQuestion = await Question.create({
-        type,
-        subtype,
-        heading,
-        prompt,
-        blanks,
-        createdBy: userId,
-    })
+    const newQuestion = await Question.create(value);
+    return newQuestion;
+}
 
+// Helper to update a question
+async function validateAndUpdateQuestion(validator, questionId, data) {
+    const { error, value } = validator.validate(data);
+    if (error) throw new ExpressError(400, error.details[0].message);
+
+    const updatedQuestion = await Question.findByIdAndUpdate(questionId, value, { new: true });
+    if (!updatedQuestion) throw new ExpressError(404, "Question not found!");
+
+    return updatedQuestion;
+}
+
+// Helper to get all questions with pagination
+async function getQuestions(subtype, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const questions = await Question.find({ subtype })
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 })
+        .lean();  // Lean query for performance
+    
+    const questionsCount = await Question.countDocuments({ subtype });
+    return { questions, questionsCount };
+}
+
+// ---------------------- reading and writing fill in the blanks ----------------------
+module.exports.addFillInTheBlanks = asyncWrapper(async (req, res) => {
+    const newQuestion = await validateAndSaveQuestion(FillInTheBlanksQuestionSchemaValidator, req.body, req.user._id, 'rw_fill_in_the_blanks');
     res.json({ newQuestion });
-})
+});
 
 module.exports.getAllFillInTheBlanks = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const allFillinTheBlanks = await Question.find({ subtype: "rw_fill_in_the_blanks" })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'rw_fill_in_the_blanks' });
-
-    res.status(200).json({ data: allFillinTheBlanks, questionsCount });
-})
+    const result = await getQuestions('rw_fill_in_the_blanks', page, limit);
+    res.status(200).json(result);
+});
 
 module.exports.editFillIntheBlanks = asyncWrapper(async (req, res) => {
-    const { questionId, newData } = req.body;
+    const updatedQuestion = await validateAndUpdateQuestion(EditFillInTheBlanksQuestionSchemaValidator, req.body.questionId, req.body.newData);
+    res.status(200).json({ message: "Question Updated Successfully", updatedQuestion });
+});
 
-
-    const { error, value } = EditFillInTheBlanksQuestionSchemaValidator.validate(newData);
-
-    const { type = 'reading', subtype = 'rw_fill_in_the_blanks', prompt, blanks, heading } = value;
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(401, "Question Id required");
-
-    const updatedQuestion = await Question.findByIdAndUpdate(questionId, {
-        type,
-        subtype,
-        heading,
-        prompt,
-        blanks,
-    });
-
-
-    res.status(200).json({ message: "Question Updated Successfully" });
-})
-
-
-
-
-// -------------------------------------mcq_multiple----------------------------------
-
+// ---------------------- mcq_multiple ----------------------
 module.exports.addMcqMultiple = asyncWrapper(async (req, res) => {
-
-    const { error, value } = mcqMultipleSchemaValidator.validate(req.body);
-
-    const { type = 'reading', subtype = 'mcq_multiple', prompt, options, correctAnswers } = value;
-    const userId = req.user._id;
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-
-    const newQuestion = await Question.create({
-        type,
-        subtype,
-        prompt,
-        options,
-        correctAnswers,
-        createdBy: userId,
-    });
-
-
+    const newQuestion = await validateAndSaveQuestion(mcqMultipleSchemaValidator, req.body, req.user._id, 'mcq_multiple');
     res.status(200).json({ data: newQuestion });
-})
+});
+
 module.exports.getMcqMultiple = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const allMcqMultipleQuestions = await Question.find({ subtype: "mcq_multiple" })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'mcq_multiple' });
-
-    res.status(200).json({ data: allMcqMultipleQuestions, questionsCount });
-})
+    const result = await getQuestions('mcq_multiple', page, limit);
+    res.status(200).json(result);
+});
 
 module.exports.editMcqMultiple = asyncWrapper(async (req, res) => {
-    const { questionId, newData } = req.body;
-
-
-    const { error, value } = EditmcqMultipleSchemaValidator.validate(newData);
-
-    const { type = 'reading', subtype = 'mcq_multiple', prompt, options, correctAnswers } = value;
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(401, "Question Id required");
-
-    const updatedQuestion = await Question.findByIdAndUpdate(questionId, {
-        type,
-        subtype,
-        prompt,
-        options,
-        correctAnswers,
-    });
-
-
+    const updatedQuestion = await validateAndUpdateQuestion(EditmcqMultipleSchemaValidator, req.body.questionId, req.body.newData);
     res.status(200).json({ message: "Question Updated Successfully", updatedQuestion });
-})
-
+});
 
 module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
-
-    const question = await questionsModel.findById(questionId);
-    if (!question) {
-        throw new ExpressError(404, "Question Not Found!");
-    }
-
-    if(question.subtype!=='mcq_multiple'){
-        throw new ExpressError(401, "this is not valid questionType for this route!")
+    const question = await Question.findById(questionId).lean();
+    if (!question || question.subtype !== 'mcq_multiple') {
+        throw new ExpressError(404, "Question Not Found or Invalid Type");
     }
 
     const correctAnswers = question.correctAnswers;
-    let score = 0;
-
-    selectedAnswers.forEach((userAnswer) => {
-        if (correctAnswers.includes(userAnswer)) {
-            score++;
-        }
-    });
-
-    const result = {
-        score,
-        totalCorrectAnswers: correctAnswers.length,
-        correctAnswersGiven: score === correctAnswers.length,
-    };
-
+    const score = selectedAnswers.filter(answer => correctAnswers.includes(answer)).length;
     const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
 
-    return res.status(200).json({
-        result,
-        feedback,
-    });
+    return res.status(200).json({ score, feedback });
 });
 
-
-// -------------------------------------mcq_single----------------------------------
-
+// ---------------------- mcq_single ----------------------
 module.exports.addMcqSingle = asyncWrapper(async (req, res) => {
-
-    const { error, value } = mcqSingleSchemaValidator.validate(req.body);
-
-    const { type = 'reading', subtype = 'mcq_single', prompt, options, correctAnswers } = value;
-    const userId = req.user._id;
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (value.correctAnswers.length > 1) throw new ExpressError(400, "Multiple answer not allowed for mcq_single");
-
-    value.createdBy = req.user._id;
-
-    const newQuestion = await Question.create({
-        type,
-        subtype,
-        prompt,
-        options,
-        correctAnswers,
-        createdBy: userId,
-    });
-
-
+    if (req.body.correctAnswers.length > 1) throw new ExpressError(400, "Multiple answers not allowed for mcq_single");
+    const newQuestion = await validateAndSaveQuestion(mcqSingleSchemaValidator, req.body, req.user._id, 'mcq_single');
     res.status(200).json({ data: newQuestion });
-})
+});
 
 module.exports.getMcqSingle = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const allMcqSingle = await Question.find({ subtype: "mcq_single" })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'mcq_single' });
-
-    res.status(200).json({ data: allMcqSingle, questionsCount });
-})
-
+    const result = await getQuestions('mcq_single', page, limit);
+    res.status(200).json(result);
+});
 
 module.exports.editMcqSingle = asyncWrapper(async (req, res) => {
-    const { questionId, newData } = req.body;
-
-
-    const { error, value } = EditmcqSingleSchemaValidator.validate(newData);
-
-    const { type = 'reading', subtype = 'mcq_single', prompt, options, correctAnswers } = value;
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (value.correctAnswers.length > 1) throw new ExpressError(400, "Multiple answer not allowed for mcq_single");
-
-    if (!questionId) throw new ExpressError(401, "Question Id required");
-
-    const updatedQuestion = await Question.findByIdAndUpdate(questionId, {
-        type,
-        subtype,
-        prompt,
-        options,
-        correctAnswers,
-    }, { new: true });
-
-
-    res.status(200).json({ message: "Question Updated Successfully" });
-})
+    if (req.body.newData.correctAnswers.length > 1) throw new ExpressError(400, "Multiple answers not allowed for mcq_single");
+    const updatedQuestion = await validateAndUpdateQuestion(EditmcqSingleSchemaValidator, req.body.questionId, req.body.newData);
+    res.status(200).json({ message: "Question Updated Successfully", updatedQuestion });
+});
 
 module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
     const { questionId, userAnswer } = req.body;
+    const question = await Question.findById(questionId).lean();
 
-    const question = await questionsModel.findById(questionId);
-
-    if (!question) {
-        throw new ExpressError(404, "Question not found!");
-    }
-    if(question.subtype!=='mcq_single'){
-        throw new ExpressError(401, "this is not valid questionType for this route!")
+    if (!question || question.subtype !== 'mcq_single') {
+        throw new ExpressError(404, "Question not found or invalid type");
     }
 
     const isCorrect = question.correctAnswers.includes(userAnswer);
-
-    return res.status(200).json({
-        isCorrect,
-        message: isCorrect ? "Correct answer!" : "Incorrect answer!"
-    });
+    return res.status(200).json({ isCorrect, message: isCorrect ? "Correct answer!" : "Incorrect answer!" });
 });
 
-
-// // -------------------------------------reading_fill_in_the_blanks----------------------------------
-
-
+// ---------------------- reading_fill_in_the_blanks ----------------------
 module.exports.addReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const { error, value } = readingFillInTheBlanksSchemaValidator.validate(req.body);
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    value.createdBy = req.user._id;
-    const newQuestion = await Question.create(value);
-
-    // console.log(value);
+    const newQuestion = await validateAndSaveQuestion(readingFillInTheBlanksSchemaValidator, req.body, req.user._id, 'reading_fill_in_the_blanks');
     res.status(200).json({ data: newQuestion });
-})
+});
 
 module.exports.editReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const { questionId, newData } = req.body;
-
-
-    const { error, value } = readingFillInTheBlanksSchemaValidator.validate(newData);
-
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(401, "Question Id required");
-
-    await Question.findByIdAndUpdate(questionId, value);
-
-
-    res.status(200).json({ message: "Question Updated Successfully" });
-})
-
+    const updatedQuestion = await validateAndUpdateQuestion(readingFillInTheBlanksSchemaValidator, req.body.questionId, req.body.newData);
+    res.status(200).json({ message: "Question Updated Successfully", updatedQuestion });
+});
 
 module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
     const allReadingFillInTheBlanks = await Question.find({ subtype: "reading_fill_in_the_blanks" }).sort({ createdAt: -1 });
-
     res.status(200).json({ data: allReadingFillInTheBlanks });
-})
+});
 
 module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
     const { questionId, blanks } = req.body;
-
-    // console.log(questionId, blanks);
-
-    const question = await questionsModel.findById(questionId);
-    if (!question) {
+    const question = await Question.findById(questionId).lean();
+    if (!question || question.subtype !== 'reading_fill_in_the_blanks') {
         throw new ExpressError(404, "Question Not Found!");
-    }
-
-    if(question.subtype!=='reading_fill_in_the_blanks'){
-        throw new ExpressError(401, "this is not valid questionType for this route!")
     }
 
     let score = 0;
     const totalBlanks = question.blanks.length;
 
     blanks.forEach((userBlank) => {
-        const correctBlank = question.blanks.find(
-            (blank) => blank.index === userBlank.index
-        );
-
+        const correctBlank = question.blanks.find((blank) => blank.index === userBlank.index);
         if (correctBlank && userBlank.selectedAnswer === correctBlank.correctAnswer) {
             score++;
         }
     });
 
-    const result = {
-        score,
-        totalBlanks,
-    };
-
+    const result = { score, totalBlanks };
     const feedback = `You scored ${score} out of ${totalBlanks}.`;
 
-    return res.status(200).json({
-        result,
-        feedback,
-    });
+    return res.status(200).json({ result, feedback });
 });
 
-
-// -------------------------------------reorder_paragraphs----------------------------------
-
-
-
+// ---------------------- reorder_paragraphs ----------------------
 module.exports.addReOrderParagraphs = asyncWrapper(async (req, res) => {
-    const { error, value } = reorderParagraphsSchemaValidator.validate(req.body);
-
-    const { type = 'reading', subtype = 'reorder_paragraphs', prompt, options } = value;
-    const userId = req.user._id;
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    value.createdBy = req.user._id;
-    const newQuestion = await Question.create({
-        type,
-        subtype,
-        prompt,
-        options,
-        createdBy: userId,
-    });
-
-    // console.log(value);
+    const newQuestion = await validateAndSaveQuestion(reorderParagraphsSchemaValidator, req.body, req.user._id, 'reorder_paragraphs');
     res.status(200).json({ data: newQuestion });
-})
+});
 
 module.exports.editReorderParagraphs = asyncWrapper(async (req, res) => {
-    const { questionId, newData } = req.body;
-
-
-    const { error, value } = reorderParagraphsSchemaValidator.validate(newData);
-
-    const { type = 'reading', subtype = 'reorder_paragraphs', prompt, paragraphs } = value;
-
-
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(401, "Question Id required");
-
-    await Question.findByIdAndUpdate(questionId, {
-        type,
-        subtype,
-        prompt,
-        paragraphs,
-    });
-
-
-    res.status(200).json({ message: "Question Updated Successfully" });
-})
+    const updatedQuestion = await validateAndUpdateQuestion(reorderParagraphsSchemaValidator, req.body.questionId, req.body.newData);
+    res.status(200).json({ message: "Question Updated Successfully", updatedQuestion });
+});
 
 module.exports.getReorderParagraphs = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const allReorderParagraphs = await questionsModel.find({ subtype: "reorder_paragraphs" })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'reorder_paragraphs' });
-
-    res.status(200).json({ data: allReorderParagraphs, questionsCount });
-})
+    const result = await getQuestions('reorder_paragraphs', page, limit);
+    res.status(200).json(result);
+});
 
 module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
     const { questionId } = req.params;
-    
-    // Fetch the question from the database
-    const question = await questionsModel.findById(questionId);
+    const question = await Question.findById(questionId).lean();
 
-    // Check if the question exists
     if (!question) {
         throw new ExpressError(404, "Question not found!");
     }
 
     // Fisher-Yates Shuffle function to randomize the options
     const shuffleArray = (array) => {
-        let shuffledArray = array.slice(); // Create a copy of the array
+        let shuffledArray = array.slice();
         for (let i = shuffledArray.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]]; // Swap elements
@@ -421,32 +202,18 @@ module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
         return shuffledArray;
     };
 
-    // Randomize the options before sending them
     const randomizedOptions = shuffleArray(question.options);
-
-    // Return the question with randomized options
     res.status(200).json({
-        data: {
-            ...question.toObject(),
-            options: randomizedOptions // Include randomized options in the response
-        }
+        data: { ...question, options: randomizedOptions }
     });
 });
 
 module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
     const { questionId, userReorderedOptions } = req.body;
+    const question = await Question.findById(questionId).lean();
 
-    if (!questionId || !Array.isArray(userReorderedOptions)) {
-        throw new ExpressError(400, "questionId and userReorderedOptions are required!");
-    }
-
-    const question = await questionsModel.findById(questionId);
-    if (!question) {
-        throw new ExpressError(404, "Question not found");
-    }
-
-    if(question.subtype!=='reorder_paragraphs'){
-        throw new ExpressError(401, "this is not valid questionType for this route!")
+    if (!question || question.subtype !== 'reorder_paragraphs') {
+        throw new ExpressError(404, "Question not found or invalid type");
     }
 
     const correctAnswers = question.options;
@@ -454,12 +221,11 @@ module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
 
     userReorderedOptions.forEach((userAnswer, index) => {
         if (userAnswer === correctAnswers[index]) {
-            score += 1;
+            score++;
         }
     });
 
     const totalScore = (score / correctAnswers.length) * 100;
-
     return res.status(200).json({
         score: totalScore,
         message: `You scored ${score} out of ${correctAnswers.length} points.`,
@@ -467,4 +233,3 @@ module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
         correctAnswer: correctAnswers
     });
 });
-

@@ -1,14 +1,14 @@
 const questionsModel = require("../../models/questions.model");
 const ExpressError = require("../../utils/ExpressError");
-const { 
-    readAloudSchemaValidator, 
-    repeatSentenceSchemaValidator, 
-    respondToASituationSchemaValidator, 
-    answerShortQuestionSchemaValidator, 
-    editreadAloudSchemaValidator, 
-    editrepeatSentenceSchemaValidator, 
-    editrespondToASituationSchemaValidator, 
-    editanswerShortQuestionSchemaValidator 
+const {
+    readAloudSchemaValidator,
+    repeatSentenceSchemaValidator,
+    respondToASituationSchemaValidator,
+    answerShortQuestionSchemaValidator,
+    editreadAloudSchemaValidator,
+    editrepeatSentenceSchemaValidator,
+    editrespondToASituationSchemaValidator,
+    editanswerShortQuestionSchemaValidator
 } = require("../../validations/schemaValidations");
 const cloudinary = require('../../middleware/cloudinary.config');
 const path = require('path');
@@ -17,7 +17,12 @@ const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const { default: axios } = require("axios");
 const fsPromises = require('fs').promises;
 const https = require('https');
+const { OpenAI } = require('openai');
 
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 // ============================================================
 // HELPER FUNCTIONS
 // ============================================================
@@ -45,7 +50,7 @@ function readFileAsBase64(filePath) {
 
 async function uploadToCloudinary(file, folderName) {
     if (!file) throw new ExpressError(400, 'Please upload a file');
-    
+
     const result = await cloudinary.uploader.upload(file.path, {
         resource_type: 'auto',
         public_id: `${path.basename(file.originalname, path.extname(file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
@@ -149,11 +154,11 @@ async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, a
         return response.data;
     } catch (error) {
         console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
-        
+
         const errorMessage = error.response
             ? JSON.stringify(error.response.data)
             : error.message;
-        
+
         throw new ExpressError(500, "Error assessing speech: " + errorMessage);
     }
 }
@@ -202,9 +207,9 @@ async function getAllQuestions(subtype, page = 1, limit = 10) {
         .limit(limit)
         .skip(skip)
         .sort({ createdAt: -1 });
-    
+
     if (!questions) throw new ExpressError('No question found', 404);
-    
+
     const questionsCount = await questionsModel.countDocuments({ subtype });
     return { questions, questionsCount };
 }
@@ -221,14 +226,14 @@ async function handleSpeechAssessment(req, res, expectedSubtype, useDirectPrompt
         if (!question) {
             throw new ExpressError(404, "Question not found!");
         }
-        
+
         if (question.subtype !== expectedSubtype) {
             throw new ExpressError(401, "this is not valid questionType for this route!");
         }
 
         const userFileBase64 = readFileAsBase64(userFilePath);
         const audioFormat = format || detectAudioFormat(userFilePath);
-        
+
         const expectedText = useDirectPrompt ? question.prompt : question.prompt;
 
         const response = await callSpeechAssessmentAPI(
@@ -258,8 +263,8 @@ async function handleSpeechAssessment(req, res, expectedSubtype, useDirectPrompt
 module.exports.addReadAloud = asyncWrapper(async (req, res) => {
     const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = req.body;
     const newQuestion = await addQuestion(
-        readAloudSchemaValidator, 
-        { type, subtype, heading, prompt }, 
+        readAloudSchemaValidator,
+        { type, subtype, heading, prompt },
         req.user._id
     );
 
@@ -272,7 +277,7 @@ module.exports.addReadAloud = asyncWrapper(async (req, res) => {
 module.exports.editReadAloud = asyncWrapper(async (req, res) => {
     const { questionId, ...data } = req.body;
     const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = data;
-    
+
     const question = await editQuestion(
         editreadAloudSchemaValidator,
         questionId,
@@ -359,9 +364,9 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
         const fileBase64 = readFileAsBase64(mainAudioFile);
 
         const firstApiResponse = await callSpeechAssessmentAPI(
-            fileBase64, 
-            format, 
-            "lksdjflksjdf", 
+            fileBase64,
+            format,
+            "lksdjflksjdf",
             accent
         );
 
@@ -380,7 +385,7 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
         );
 
         await safeDeleteFile(userFilePath);
-        
+
         return res.status(200).json({
             success: true,
             data: finalResponse
@@ -443,7 +448,7 @@ module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
     if (req.file && path.extname(req.file.originalname) !== '.wav') {
         throw new ExpressError(401, "only .wav file is supported");
     }
-    
+
     return handleSpeechAssessment(req, res, 'respond_to_situation');
 });
 
@@ -491,4 +496,110 @@ module.exports.getAllAnswerShortQuestion = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const result = await getAllQuestions('answer_short_question', page, limit);
     res.status(200).json(result);
+});
+
+module.exports.answerShortQuestionResult = asyncWrapper(async (req, res) => {
+    const { questionId, accent = 'us' } = req.body;
+    let mainAudioFile = null;
+    let userFilePath = req.file?.path;
+
+    try {
+        if (!questionId) throw new ExpressError(400, "questionId is required!");
+        if (!req.file) throw new ExpressError(400, "voice is required!");
+
+        const question = await questionsModel.findById(questionId);
+        if (!question) throw new ExpressError(404, "Question Not Found!");
+
+        mainAudioFile = await downloadAndSaveAudio(question.audioUrl);
+        const format = detectAudioFormat(question.audioUrl);
+        const fileBase64 = readFileAsBase64(mainAudioFile);
+
+        const firstApiResponse = await callSpeechAssessmentAPI(
+            fileBase64,
+            format,
+            "lksdjflksjdf",
+            accent
+        );
+
+        await safeDeleteFile(mainAudioFile);
+        mainAudioFile = null;
+
+        const userfileBase64 = readFileAsBase64(userFilePath);
+        const mainAudioText = extractTranscript(firstApiResponse);
+        const finalFormat = detectAudioFormat(userFilePath);
+
+        const finalResponse = await callSpeechAssessmentAPI(
+            userfileBase64,
+            finalFormat,
+            "sdfsdfsty",
+            accent
+        );
+
+        const userText = extractTranscript(finalResponse);
+
+        await safeDeleteFile(userFilePath);
+        userFilePath = null;
+
+        const prompt = `
+You are an expert language assessor, and your task is to evaluate the speaking and listening abilities of a user based on a question prompt and their response. Below are the inputs:
+
+**Main Audio Text (Question):**
+"${mainAudioText}"
+
+**User's Answer (Response):**
+"${userText}"
+
+Please evaluate the user's response in the following categories:
+1. **Speaking**: Based on the content and coherence of the user’s spoken answer. The answer should be evaluated based on:
+   - How well the user answered the question.
+   - How relevant the response is to the question.
+   - The organization and clarity of the answer.
+   - Score the user’s speaking ability out of 1.
+   
+2. **Listening**: Based on how well the user understood the question and responded appropriately.
+   - Score the user's listening ability out of 1.
+
+3. **Enabling Skills**: Does the user demonstrate clear enabling skills (e.g., vocabulary use, organization of the response)?
+   - Mark 'YES' or 'NO'.
+
+4. **Fluency**: Evaluate how smoothly the user speaks without unnatural pauses or hesitation.
+   - Score fluency out of 1.
+
+5. **Pronunciation**: Evaluate how well the user pronounces words, including clarity and accuracy.
+   - Score pronunciation out of 1.
+
+Please provide the following result in this format and Format your response as JSON:
+{
+    "Speaking": 0-1,
+    "Listening": 0-1, 
+    "Enabling Skills": "[YES/NO]", 
+    "Fluency": 0-1,
+    "Pronunciation": 0-1 
+}
+
+`;
+        const response = await openai.chat.completions.create({
+            model: "gpt-4",
+            messages: [
+                { role: "system", content: "You are an expert language assessor evaluating user responses based on several criteria." },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 500
+        });
+        console.log("GPT Response:", response.choices[0].message.content);
+        const result = JSON.parse(response.choices[0].message.content);
+
+        res.status(200).json({success: true,result});
+
+    } catch (error) {
+        if (mainAudioFile) {
+            await safeDeleteFile(mainAudioFile);
+        }
+        if(userFilePath){
+            await safeDeleteFile(userFilePath);
+        }
+        
+        throw error;
+    }
 });

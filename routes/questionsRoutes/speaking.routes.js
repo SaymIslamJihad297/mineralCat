@@ -1,4 +1,4 @@
-const { addReadAloud, getAllReadAloud, editReadAloud, addRepeatSentence, editRepeatSentence, getAllRepeatSentence, addRespondToASituation, editRespondToASituation, getAllRespondToASituation, addAnswerShortQuestion, editAnswerShortQuestion, getAllAnswerShortQuestion, readAloudResult, respondToASituationResult, repeatSentenceResult } = require('../../controllers/questionsControllers/speaking.controller');
+const { addReadAloud, getAllReadAloud, editReadAloud, addRepeatSentence, editRepeatSentence, getAllRepeatSentence, addRespondToASituation, editRespondToASituation, getAllRespondToASituation, addAnswerShortQuestion, editAnswerShortQuestion, getAllAnswerShortQuestion, readAloudResult, respondToASituationResult, repeatSentenceResult, answerShortQuestionResult } = require('../../controllers/questionsControllers/speaking.controller');
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 const upload = require('../../middleware/upload');
 
@@ -32,5 +32,8 @@ router.route('/answer_short_question')
     .get(isUserLoggedIn ,getAllAnswerShortQuestion)
     .put(isUserLoggedIn , isAdminUser, upload.single('voice'),editAnswerShortQuestion)
     .post(isUserLoggedIn , isAdminUser, upload.single('voice'),addAnswerShortQuestion);
+
+
+router.post('/answer_short_question/result', isUserLoggedIn, upload.single('voice'),answerShortQuestionResult);
 
 module.exports = router;

@@ -12,82 +12,16 @@ const { OpenAI } = require('openai');
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
-// --------------------------summarization spoken text-------------------------
-module.exports.addSummarizeSpokenText = asyncWrapper(async (req, res) => {
-
-    if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
-
-    const { error, value } = summarizeSpokenTextSchemaValidator.validate(req.body);
-
-    const { type = 'listening', subtype = 'summarize_spoken_text', heading } = value;
-
-    const folderName = 'summarizeSpokenText';
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-        resource_type: 'auto',
-        public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-        folder: `listening_test/${folderName}`,
-        type: 'authenticated',
-    })
-
-    fs.unlinkSync(req.file.path);
-
-    const data = {
-        type,
-        subtype,
-        heading,
-        audioUrl: result.secure_url,
-        createdBy: req.user._id
-    };
-
-    const newQuestion = await questionsModel.create(data)
-
-    res.status(200).json(newQuestion);
-})
-
-module.exports.editSummarizeSpokenText = asyncWrapper(async (req, res) => {
-    const { questionId, ...data } = req.body;
-    // Validate incoming data (excluding questionId)
-    const { error, value } = summarizeSpokenTextSchemaValidator.validate(data);
-    if (error) throw new ExpressError(400, error.details[0].message);
-
-    if (!questionId) throw new ExpressError(400, "Question ID is required");
-
-    if (req.file !== undefined) {
-        const folderName = 'summarizeSpokenText';
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            resource_type: 'auto',
-            public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-            folder: `listening_test/${folderName}`,
-            type: 'authenticated',
-        })
-
-        fs.unlinkSync(req.file.path);
-        value.audioUrl = result.secure_url;
+// helper functions
+function readFileAsBase64(filePath) {
+    try {
+        const fileBuffer = fs.readFileSync(filePath);
+        return fileBuffer.toString('base64');
+    } catch (readError) {
+        console.error("Failed to read file from disk:", readError);
+        throw new ExpressError(500, "Failed to read file from disk: " + readError.message);
     }
-    const question = await questionsModel.findByIdAndUpdate(questionId, value, { new: true });
-    if (!question) throw new ExpressError(404, 'Question not found');
-
-    res.status(200).json({
-        message: "Question updated successfully",
-        question: question,
-    });
-})
-
-module.exports.getAllSummarizeSpokenText = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const questions = await questionsModel.find({ subtype: 'summarize_spoken_text' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
-
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'summarize_spoken_text' });
-    res.status(200).json({ questions, questionsCount });
-})
-
+}
 const downloadAndEncodeAudio = async (audioUrl) => {
     return new Promise((resolve, reject) => {
         console.log('Downloading audio from:', audioUrl);
@@ -236,6 +170,129 @@ Format your response as JSON:
         throw new Error('Failed to get ChatGPT assessment: ' + error.message);
     }
 };
+async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, accent) {
+    const data = JSON.stringify({
+        "audio_base64": audioBase64,
+        "audio_format": audioFormat,
+        "expected_text": expectedText,
+    });
+
+    const config = {
+        method: 'post',
+        maxBodyLength: Infinity,
+        url: `${process.env.LANGUAGE_CONFIDENCE_BASE_URL}/speech-assessment/scripted/${accent}`,
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': process.env.LANGUAGE_CONFIDENCE_SECONDARY_API,
+        },
+        data: data
+    };
+
+    try {
+        const response = await axios.request(config);
+        return response.data;
+    } catch (error) {
+        console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
+
+        const errorMessage = error.response
+            ? JSON.stringify(error.response.data)
+            : error.message;
+
+        throw new ExpressError(500, "Error assessing speech: " + errorMessage);
+    }
+}
+
+// --------------------------summarization spoken text-------------------------
+module.exports.addSummarizeSpokenText = asyncWrapper(async (req, res) => {
+
+    if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
+
+    const { error, value } = summarizeSpokenTextSchemaValidator.validate(req.body);
+
+    const { type = 'listening', subtype = 'summarize_spoken_text', heading } = value;
+
+    const folderName = 'summarizeSpokenText';
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+        resource_type: 'auto',
+        public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        folder: `listening_test/${folderName}`,
+        type: 'authenticated',
+    })
+
+    const audioFilePath = req.file.path;
+    const userFileBase64 = readFileAsBase64(audioFilePath);
+    const audioFormat = detectAudioFormat(audioFilePath);
+    const expectedText = "sdfsdfsfsdff"
+
+    const response = await callSpeechAssessmentAPI(
+        userFileBase64,
+        audioFormat,
+        expectedText,
+        'us'
+    );
+    const ConvertedText = extractTranscript(response);
+
+    fs.unlinkSync(req.file.path);
+
+    const data = {
+        type,
+        subtype,
+        heading,
+        audioUrl: result.secure_url,
+        audioConvertedText: ConvertedText,
+        createdBy: req.user._id
+    };
+
+    const newQuestion = await questionsModel.create(data)
+
+    res.status(200).json(newQuestion);
+})
+
+module.exports.editSummarizeSpokenText = asyncWrapper(async (req, res) => {
+    const { questionId, ...data } = req.body;
+    // Validate incoming data (excluding questionId)
+    const { error, value } = summarizeSpokenTextSchemaValidator.validate(data);
+    if (error) throw new ExpressError(400, error.details[0].message);
+
+    if (!questionId) throw new ExpressError(400, "Question ID is required");
+
+    if (req.file !== undefined) {
+        const folderName = 'summarizeSpokenText';
+        const result = await cloudinary.uploader.upload(req.file.path, {
+            resource_type: 'auto',
+            public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+            folder: `listening_test/${folderName}`,
+            type: 'authenticated',
+        })
+
+        fs.unlinkSync(req.file.path);
+        value.audioUrl = result.secure_url;
+    }
+    const question = await questionsModel.findByIdAndUpdate(questionId, value, { new: true });
+    if (!question) throw new ExpressError(404, 'Question not found');
+
+    res.status(200).json({
+        message: "Question updated successfully",
+        question: question,
+    });
+})
+
+module.exports.getAllSummarizeSpokenText = asyncWrapper(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const questions = await questionsModel.find({ subtype: 'summarize_spoken_text' })
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 });
+    if (!questions) throw new ExpressError('No question found', 404);
+
+    const questionsCount = await questionsModel.countDocuments({ subtype: 'summarize_spoken_text' });
+    res.status(200).json({ questions, questionsCount });
+})
+
 
 module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
     const { questionId, userSummary } = req.body;
@@ -254,43 +311,10 @@ module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
             throw new ExpressError(401, "this is not valid questionType for this route!")
         }
 
-        const audioUrl = question.audioUrl;
-        if (!audioUrl) {
-            throw new ExpressError(404, 'Audio URL not found for this question!');
-        }
-
-        console.log('Starting audio download and processing...');
-        const audioData = await downloadAndEncodeAudio(audioUrl);
-        const audioFormat = detectAudioFormat(audioUrl, audioData.contentType);
-
-        const requestData = {
-            audio_base64: audioData.base64,
-            audio_format: audioFormat
-        };
-
-        const config = {
-            method: 'post',
-            url: 'https://apis.languageconfidence.ai/speech-assessment/unscripted/us',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'api-key': process.env.LANGUAGE_CONFIDENCE_PRIMARY_API
-            },
-            data: requestData,
-            timeout: 60000,
-            maxContentLength: 50 * 1024 * 1024,
-            maxBodyLength: 50 * 1024 * 1024
-        };
-
-        console.log('Making API request to Language Confidence...');
-        const apiResponse = await axios.request(config);
-
-        const originalTranscript = extractTranscript(apiResponse.data);
+        const originalTranscript = question.audioConvertedText;;
         if (!originalTranscript) {
             throw new Error('Could not extract transcript from API response');
         }
-
-        console.log('Extracted transcript:', originalTranscript);
 
         console.log('Sending to ChatGPT for assessment...');
         const chatGPTAssessment = await scoreWithChatGPT(originalTranscript, userSummary);
@@ -678,15 +702,15 @@ module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res)
     res.status(200).json({ questions, questionsCount });
 });
 
-module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async(req, res)=>{
+module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
 
     console.log(selectedAnswers.length);
 
-    if(selectedAnswers.length > 1){
+    if (selectedAnswers.length > 1) {
         throw new ExpressError(401, "multiple answer is not allowed!");
     }
-    
+
 
     const question = await questionsModel.findById(questionId);
     if (!question) {

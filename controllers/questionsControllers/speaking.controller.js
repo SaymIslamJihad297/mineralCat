@@ -163,7 +163,7 @@ async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, a
     }
 }
 
-async function addQuestion(validator, data, userId, audioFile = null, folderName = null) {
+async function addQuestion(validator, data, userId, audioFile = null, folderName = null, convertToText = false) {
     const { error, value } = validator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
@@ -172,6 +172,22 @@ async function addQuestion(validator, data, userId, audioFile = null, folderName
         createdBy: userId,
     };
 
+        if (audioFile && convertToText === true) {
+        const audioFilePath = audioFile.path;
+        const userFileBase64 = readFileAsBase64(audioFilePath);
+        console.log(audioFile);
+        const audioFormat = detectAudioFormat(audioFilePath);
+        const expectedText = "sdfsdfsfsdff"
+
+        const response = await callSpeechAssessmentAPI(
+            userFileBase64,
+            audioFormat,
+            expectedText,
+            'us'
+        );
+        const ConvertedText = extractTranscript(response);
+        questionData.audioConvertedText = ConvertedText;
+    }
     if (audioFile && folderName) {
         questionData.audioUrl = await uploadToCloudinary(audioFile, folderName);
     }
@@ -312,7 +328,8 @@ module.exports.addRepeatSentence = asyncWrapper(async (req, res) => {
         { type, subtype, heading },
         req.user._id,
         req.file,
-        'repeatSentence'
+        'repeatSentence',
+        true
     );
 
     return res.status(200).json({
@@ -349,7 +366,6 @@ module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
 
 module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
     const { questionId, accent = 'us' } = req.body;
-    let mainAudioFile = null;
     let userFilePath = req.file?.path;
 
     try {
@@ -359,22 +375,8 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
         const question = await questionsModel.findById(questionId);
         if (!question) throw new ExpressError(404, "Question Not Found!");
 
-        mainAudioFile = await downloadAndSaveAudio(question.audioUrl);
-        const format = detectAudioFormat(question.audioUrl);
-        const fileBase64 = readFileAsBase64(mainAudioFile);
-
-        const firstApiResponse = await callSpeechAssessmentAPI(
-            fileBase64,
-            format,
-            "lksdjflksjdf",
-            accent
-        );
-
-        await safeDeleteFile(mainAudioFile);
-        mainAudioFile = null;
-
         const userfileBase64 = readFileAsBase64(userFilePath);
-        const expectedText = extractTranscript(firstApiResponse);
+        const expectedText = question.audioConvertedText;
         const finalFormat = detectAudioFormat(userFilePath);
 
         const finalResponse = await callSpeechAssessmentAPI(
@@ -392,7 +394,6 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
         });
 
     } catch (error) {
-        await safeDeleteFile(mainAudioFile);
         await safeDeleteFile(userFilePath);
         throw error;
     }
@@ -463,7 +464,8 @@ module.exports.addAnswerShortQuestion = asyncWrapper(async (req, res) => {
         { type, subtype, heading },
         req.user._id,
         req.file,
-        'answerShortQuestion'
+        'answerShortQuestion',
+        true
     );
 
     return res.status(200).json({
@@ -510,22 +512,8 @@ module.exports.answerShortQuestionResult = asyncWrapper(async (req, res) => {
         const question = await questionsModel.findById(questionId);
         if (!question) throw new ExpressError(404, "Question Not Found!");
 
-        mainAudioFile = await downloadAndSaveAudio(question.audioUrl);
-        const format = detectAudioFormat(question.audioUrl);
-        const fileBase64 = readFileAsBase64(mainAudioFile);
-
-        const firstApiResponse = await callSpeechAssessmentAPI(
-            fileBase64,
-            format,
-            "lksdjflksjdf",
-            accent
-        );
-
-        await safeDeleteFile(mainAudioFile);
-        mainAudioFile = null;
-
         const userfileBase64 = readFileAsBase64(userFilePath);
-        const mainAudioText = extractTranscript(firstApiResponse);
+        const mainAudioText = question.audioConvertedText;
         const finalFormat = detectAudioFormat(userFilePath);
 
         const finalResponse = await callSpeechAssessmentAPI(
@@ -590,16 +578,16 @@ Please provide the following result in this format and Format your response as J
         console.log("GPT Response:", response.choices[0].message.content);
         const result = JSON.parse(response.choices[0].message.content);
 
-        res.status(200).json({success: true,result});
+        res.status(200).json({ success: true, result });
 
     } catch (error) {
         if (mainAudioFile) {
             await safeDeleteFile(mainAudioFile);
         }
-        if(userFilePath){
+        if (userFilePath) {
             await safeDeleteFile(userFilePath);
         }
-        
+
         throw error;
     }
 });

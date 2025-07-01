@@ -40,6 +40,7 @@ const QuestionSchema = new Schema({
 
   // For questions with text/audio/image
   audioUrl: String,
+  audioConvertedText: String,
   imageUrl: String,
   text: String,
 

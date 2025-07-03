@@ -132,7 +132,7 @@ module.exports.addSummarizeTextSchemaValidator = Joi.object(
         type: Joi.string().optional(),
         subtype: Joi.string().optional(),
         heading: Joi.string().required(),
-        text: Joi.string().required(),
+        prompt: Joi.string().required(),
     }
 )
 
@@ -219,8 +219,6 @@ module.exports.editrepeatSentenceSchemaValidator = Joi.object(
         heading: Joi.string().optional(),
     }
 )
-
-
 
 
 module.exports.respondToASituationSchemaValidator = Joi.object(

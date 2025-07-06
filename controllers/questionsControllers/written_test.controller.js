@@ -1,6 +1,6 @@
 const questionsModel = require("../../models/questions.model");
 const ExpressError = require("../../utils/ExpressError");
-const { addSummarizeTextSchemaValidator, writeEmailSchemaValidator } = require("../../validations/schemaValidations");
+const { addSummarizeTextSchemaValidator, writeEmailSchemaValidator, EditWriteEmailSchemaValidator } = require("../../validations/schemaValidations");
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const { default: axios } = require("axios");
 const { OpenAI } = require('openai');
@@ -14,6 +14,9 @@ const openai = new OpenAI({
 
 
 module.exports.addSummarizeWrittenText = asyncWrapper(async (req, res) => {
+    if (req.body.type != 'writing' || req.body.subtype != 'summarize_written_text') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
     const { error, value } = addSummarizeTextSchemaValidator.validate(req.body);
 
     const { type = 'writing', subtype = 'summarize_written_text', heading, text } = value;
@@ -34,6 +37,9 @@ module.exports.addSummarizeWrittenText = asyncWrapper(async (req, res) => {
 
 
 module.exports.editSummarizeWrittenText = asyncWrapper(async (req, res) => {
+    if ((req.body.newData.type && req.body.newData.type != 'writing') || (req.body.newData.subtype && req.body.newData.subtype != 'summarize_written_text')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
     const { questionId, newData } = req.body;
 
 
@@ -166,6 +172,10 @@ function parseGPTResponse(responseText) {
 // ------------------- write email --------------------------------------
 
 module.exports.addWriteEmail = asyncWrapper(async (req, res) => {
+    if (req.body.type != 'writing' || req.body.subtype != 'write_email') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+    
     const { error, value } = writeEmailSchemaValidator.validate(req.body);
 
     const { type = 'writing', subtype = 'write_email', heading, prompt } = value;
@@ -185,10 +195,13 @@ module.exports.addWriteEmail = asyncWrapper(async (req, res) => {
 })
 
 module.exports.editWriteEmail = asyncWrapper(async (req, res) => {
+    if ((req.body.newData.type && req.body.newData.type != 'writing') || (req.body.newData.subtype && req.body.newData.subtype != 'write_email')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
     const { questionId, newData } = req.body;
 
 
-    const { error, value } = writeEmailSchemaValidator.validate(newData);
+    const { error, value } = EditWriteEmailSchemaValidator.validate(newData);
 
     const { type = 'writing', subtype = 'write_email', heading, prompt } = value;
 
@@ -219,7 +232,6 @@ module.exports.getWriteEmail = asyncWrapper(async (req, res) => {
     const questionsCount = await questionsModel.countDocuments({ subtype: 'write_email' });
     res.status(200).json({ questions, questionsCount });
 })
-
 
 module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
     const { questionId, email } = req.body;

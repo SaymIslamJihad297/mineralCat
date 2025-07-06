@@ -3,7 +3,7 @@ const path = require('path');
 const ExpressError = require('../../utils/ExpressError');
 const fs = require('node:fs');
 const questionsModel = require("../../models/questions.model");
-const { summarizeSpokenTextSchemaValidator, addMultipleChoiceAndMultipleAnswersSchemaValidator, addListeningFillInTheBlanksSchemaValidator, addMultipleChoiceSingleAnswerSchemaValidator } = require('../../validations/schemaValidations');
+const { summarizeSpokenTextSchemaValidator, addMultipleChoiceAndMultipleAnswersSchemaValidator, addListeningFillInTheBlanksSchemaValidator, addMultipleChoiceSingleAnswerSchemaValidator, editSummarizeSpokenTextSchemaValidator, EditAddMultipleChoiceAndMultipleAnswersSchemaValidator, EditListeningFillInTheBlanksSchemaValidator, EditMultipleChoiceSingleAnswerSchemaValidator } = require('../../validations/schemaValidations');
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const https = require('https');
 const axios = require('axios');
@@ -206,9 +206,19 @@ async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, a
 // --------------------------summarization spoken text-------------------------
 module.exports.addSummarizeSpokenText = asyncWrapper(async (req, res) => {
 
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if (newData.type != 'listening' || newData.subtype != 'summarize_spoken_text') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
     if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
 
-    const { error, value } = summarizeSpokenTextSchemaValidator.validate(req.body);
+    const { error, value } = summarizeSpokenTextSchemaValidator.validate(newData);
 
     const { type = 'listening', subtype = 'summarize_spoken_text', heading } = value;
 
@@ -251,9 +261,18 @@ module.exports.addSummarizeSpokenText = asyncWrapper(async (req, res) => {
 })
 
 module.exports.editSummarizeSpokenText = asyncWrapper(async (req, res) => {
-    const { questionId, ...data } = req.body;
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if ((newData.type && newData.type != 'listening') || (newData.subtype && newData.subtype != 'summarize_spoken_text')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+    const { questionId, ...data } = newData;
     // Validate incoming data (excluding questionId)
-    const { error, value } = summarizeSpokenTextSchemaValidator.validate(data);
+    const { error, value } = editSummarizeSpokenTextSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");
@@ -368,6 +387,10 @@ module.exports.addMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req, r
 
     if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
 
+    if (req.body.type != 'listening' || req.body.subtype != 'listening_multiple_choice_multiple_answers') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
     if (typeof req.body.options === 'string' || typeof req.body.correctAnswers === 'string') {
         req.body.options = JSON.parse(req.body.options);
         req.body.correctAnswers = JSON.parse(req.body.correctAnswers);
@@ -405,13 +428,17 @@ module.exports.addMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req, r
 
 module.exports.editMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req, res) => {
 
+    if ((req.body.type && req.body.type != 'listening') || (req.body.subtype && req.body.subtype != 'listening_multiple_choice_multiple_answers')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
     if (typeof req.body.options === 'string' || typeof req.body.correctAnswers === 'string') {
         req.body.options = JSON.parse(req.body.options);
         req.body.correctAnswers = JSON.parse(req.body.correctAnswers);
     }
     const { questionId, ...data } = req.body;
 
-    const { error, value } = addMultipleChoiceAndMultipleAnswersSchemaValidator.validate(data);
+    const { error, value } = EditAddMultipleChoiceAndMultipleAnswersSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");
@@ -489,6 +516,10 @@ module.exports.multipleChoicesAndMultipleAnswersResult = asyncWrapper(async (req
 module.exports.addListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
     if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
 
+    if (req.body.type != 'listening' || req.body.subtype != 'listening_fill_in_the_blanks') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
     if (typeof req.body.blanks === 'string') {
         req.body.blanks = JSON.parse(req.body.blanks);
     }
@@ -525,12 +556,16 @@ module.exports.addListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
 });
 
 module.exports.editListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
+    if ((req.body.type && req.body.type != 'listening') || (req.body.subtype && req.body.subtype != 'listening_fill_in_the_blanks')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
     if (typeof req.body.blanks === 'string') {
         req.body.blanks = JSON.parse(req.body.blanks);
     }
     const { questionId, ...data } = req.body;
 
-    const { error, value } = addListeningFillInTheBlanksSchemaValidator.validate(data);
+    const { error, value } = EditListeningFillInTheBlanksSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");
@@ -615,7 +650,10 @@ module.exports.listeningFillInTheBlanksResult = asyncWrapper(async (req, res) =>
 module.exports.addMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) => {
     if (req.file === undefined) throw new ExpressError(400, 'Please upload a file');
 
-
+    // Add type/subtype validation
+    if (req.body.type != 'listening' || req.body.subtype != 'listening_multiple_choice_single_answers') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
 
     if (typeof req.body.options === 'string' || typeof req.body.correctAnswers === 'string') {
         req.body.options = JSON.parse(req.body.options);
@@ -653,17 +691,25 @@ module.exports.addMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) =>
 
 
 module.exports.editMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) => {
+    if ((req.body.type && req.body.type != 'listening') || (req.body.subtype && req.body.subtype != 'listening_multiple_choice_single_answers')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    // Parse the options and correctAnswers if they are passed as strings
     if (typeof req.body.options === 'string' || typeof req.body.correctAnswers === 'string') {
         req.body.options = JSON.parse(req.body.options);
         req.body.correctAnswers = JSON.parse(req.body.correctAnswers);
     }
+
     const { questionId, ...data } = req.body;
 
-    const { error, value } = addMultipleChoiceSingleAnswerSchemaValidator.validate(data);
+    // Validate the data using the schema validator
+    const { error, value } = EditMultipleChoiceSingleAnswerSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");
 
+    // Handle file upload (optional)
     if (req.file !== undefined) {
         const folderName = 'multiplechoicesingleanswers';
         const result = await cloudinary.uploader.upload(req.file.path, {
@@ -671,23 +717,26 @@ module.exports.editMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) =
             public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
             folder: `listening_test/${folderName}`,
             type: 'authenticated',
-        })
+        });
 
         fs.unlinkSync(req.file.path);
         value.audioUrl = result.secure_url;
     }
+
+    // Explicitly retain the 'heading' field in the update
     value.type = 'listening';
     value.subtype = 'listening_multiple_choice_single_answers';
 
-    const question = await questionsModel.findByIdAndUpdate(questionId, value, { new: true });
+    // Retrieve the question and update it
+    const question = await questionsModel.findByIdAndUpdate(questionId, { $set: value }, { new: true });
     if (!question) throw new ExpressError(404, 'Question not found');
 
-
+    // Respond with the updated question
     res.status(200).json({
         message: "Question updated successfully",
-        question: question,
+        updatedQuestion: question,
     });
-})
+});
 
 module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;

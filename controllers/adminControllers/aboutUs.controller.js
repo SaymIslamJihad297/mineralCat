@@ -27,7 +27,6 @@ module.exports.updateAboutUs = asyncWrapper(async(req, res)=>{
 
     const data = await aboutUsModel.find();
     const dataId = data[0]._id;
-    console.log(dataId);
     const updatedAboutUs = await aboutUsModel.findByIdAndUpdate(dataId, {aboutUsText}, {new: true});
     res.send(updatedAboutUs);
 })

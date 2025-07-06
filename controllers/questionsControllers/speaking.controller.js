@@ -277,7 +277,18 @@ async function handleSpeechAssessment(req, res, expectedSubtype, useDirectPrompt
 // ============================================================
 
 module.exports.addReadAloud = asyncWrapper(async (req, res) => {
-    const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = req.body;
+
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if (newData.type != 'speaking' || newData.subtype != 'read_aloud') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = newData;
     const newQuestion = await addQuestion(
         readAloudSchemaValidator,
         { type, subtype, heading, prompt },
@@ -291,7 +302,17 @@ module.exports.addReadAloud = asyncWrapper(async (req, res) => {
 });
 
 module.exports.editReadAloud = asyncWrapper(async (req, res) => {
-    const { questionId, ...data } = req.body;
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if ( (newData.type && newData.type != 'speaking') || ( newData.subtype && newData.subtype != 'read_aloud')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { questionId, ...data } = newData;
     const { type = 'speaking', subtype = 'read_aloud', heading, prompt } = data;
 
     const question = await editQuestion(
@@ -322,7 +343,17 @@ module.exports.readAloudResult = asyncWrapper(async (req, res) => {
 // ============================================================
 
 module.exports.addRepeatSentence = asyncWrapper(async (req, res) => {
-    const { type = 'speaking', subtype = 'repeat_sentence', heading } = req.body;
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if (newData.type != 'speaking' || newData.subtype != 'repeat_sentence') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { type = 'speaking', subtype = 'repeat_sentence', heading } = newData;
     const newQuestion = await addQuestion(
         repeatSentenceSchemaValidator,
         { type, subtype, heading },
@@ -339,7 +370,17 @@ module.exports.addRepeatSentence = asyncWrapper(async (req, res) => {
 });
 
 module.exports.editRepeatSentence = asyncWrapper(async (req, res) => {
-    const { questionId, ...data } = req.body;
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if ((newData.type && newData.type != 'speaking') || (newData.subtype && newData.subtype != 'repeat_sentence')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { questionId, ...data } = newData;
     data.type = 'speaking';
     data.subtype = 'repeat_sentence';
 
@@ -404,7 +445,20 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
 // ============================================================
 
 module.exports.addRespondToASituation = asyncWrapper(async (req, res) => {
-    const { type = 'speaking', subtype = 'respond_to_situation', heading, prompt } = req.body;
+    if(!req.file){
+        throw new ExpressError(400, "File is Required");
+    }
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if (newData.type != 'speaking' || newData.subtype != 'respond_to_situation') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { type = 'speaking', subtype = 'respond_to_situation', heading, prompt } = newData;
     const newQuestion = await addQuestion(
         respondToASituationSchemaValidator,
         { type, subtype, heading, prompt },
@@ -420,7 +474,17 @@ module.exports.addRespondToASituation = asyncWrapper(async (req, res) => {
 });
 
 module.exports.editRespondToASituation = asyncWrapper(async (req, res) => {
-    const { questionId, ...data } = req.body;
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if ((newData.type && newData.type != 'speaking') || (newData.subtype && newData.subtype != 'respond_to_situation')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { questionId, ...data } = newData;
     data.type = 'speaking';
     data.subtype = 'respond_to_situation';
 
@@ -458,7 +522,20 @@ module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
 // ============================================================
 
 module.exports.addAnswerShortQuestion = asyncWrapper(async (req, res) => {
-    const { type = 'speaking', subtype = 'answer_short_question', heading } = req.body;
+    if(!req.file){
+        throw new ExpressError(400, "File is Required");
+    }
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if (newData.type != 'speaking' || newData.subtype != 'answer_short_question') {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { type = 'speaking', subtype = 'answer_short_question', heading } = newData;
     const newQuestion = await addQuestion(
         answerShortQuestionSchemaValidator,
         { type, subtype, heading },
@@ -475,7 +552,17 @@ module.exports.addAnswerShortQuestion = asyncWrapper(async (req, res) => {
 });
 
 module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
-    const { questionId, ...data } = req.body;
+    const newData = req.body;
+
+    if (!newData) {
+        throw new ExpressError(400, "New data is required");
+    }
+
+    if ((newData.type && newData.type != 'speaking') || (newData.subtype && newData.subtype != 'answer_short_question')) {
+        throw new ExpressError(400, "question type or subtype is not valid!");
+    }
+
+    const { questionId, ...data } = newData;
     data.type = 'speaking';
     data.subtype = 'answer_short_question';
 

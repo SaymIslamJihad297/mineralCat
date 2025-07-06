@@ -34,8 +34,8 @@ module.exports.subscriptionSchemaValidator = Joi.object({
 });
 
 module.exports.FillInTheBlanksQuestionSchemaValidator = Joi.object({
-    type: Joi.string().optional(),
-    subtype: Joi.string().optional(),
+    type: Joi.string().required(),
+    subtype: Joi.string().required(),
     heading: Joi.string().required(),
     prompt: Joi.string().required(),
     blanks: Joi.array().required(),
@@ -50,8 +50,8 @@ module.exports.EditFillInTheBlanksQuestionSchemaValidator = Joi.object({
 
 
 module.exports.mcqMultipleSchemaValidator = Joi.object({
-    type: Joi.string().optional(),
-    subtype: Joi.string().optional(),
+    type: Joi.string().required(),
+    subtype: Joi.string().required(),
     heading: Joi.string().required(),
     prompt: Joi.string().required(),
     text: Joi.string().required(),
@@ -69,8 +69,8 @@ module.exports.editmcqMultipleSchemaValidator = Joi.object({
 })
 
 module.exports.mcqSingleSchemaValidator = Joi.object({
-    type: Joi.string().optional(),
-    subtype: Joi.string().optional(),
+    type: Joi.string().required(),
+    subtype: Joi.string().required(),
     heading: Joi.string().required(),
     prompt: Joi.string().required(),
     text: Joi.string().required(),
@@ -115,22 +115,46 @@ module.exports.readingFillInTheBlanksSchemaValidator = Joi.object(
             .required(),
     }
 )
+module.exports.editReadingFillInTheBlanksSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        prompt: Joi.string().optional(),
+        blanks: Joi.array()
+            .items(
+                Joi.object({
+                    index: Joi.number().required(),
+                    options: Joi.array().required(),
+                    correctAnswer: Joi.string().required()
+                })
+            )
+            .optional(),
+    }
+)
 
 
 module.exports.reorderParagraphsSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         prompt: Joi.string().required(),
         options: Joi.array().required(),
+    }
+)
+module.exports.EditReorderParagraphsSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        prompt: Joi.string().optional(),
+        options: Joi.array().optional(),
     }
 )
 
 
 module.exports.addSummarizeTextSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
         prompt: Joi.string().required(),
     }
@@ -138,52 +162,96 @@ module.exports.addSummarizeTextSchemaValidator = Joi.object(
 
 module.exports.writeEmailSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
         prompt: Joi.string().required(),
+    }
+)
+module.exports.EditWriteEmailSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
+        prompt: Joi.string().optional(),
     }
 )
 
 
 module.exports.summarizeSpokenTextSchemaValidator = Joi.object(
     {
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
+        heading: Joi.string().required(),
+    }
+)
+module.exports.editSummarizeSpokenTextSchemaValidator = Joi.object(
+    {
         type: Joi.string().optional(),
         subtype: Joi.string().optional(),
-        heading: Joi.string().required(),
+        heading: Joi.string().optional(),
     }
 )
 
 
 module.exports.addMultipleChoiceAndMultipleAnswersSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
         prompt: Joi.string().required(),
         options: Joi.array().required(),
         correctAnswers: Joi.array().required(),
+    }
+)
+module.exports.EditAddMultipleChoiceAndMultipleAnswersSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
+        prompt: Joi.string().optional(),
+        options: Joi.array().optional(),
+        correctAnswers: Joi.array().optional(),
     }
 )
 
 module.exports.addListeningFillInTheBlanksSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
         prompt: Joi.string().required(),
         blanks: Joi.array().required(),
     }
 )
-
-module.exports.addMultipleChoiceSingleAnswerSchemaValidator = Joi.object(
+module.exports.EditListeningFillInTheBlanksSchemaValidator = Joi.object(
     {
         type: Joi.string().optional(),
         subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
+        prompt: Joi.string().optional(),
+        blanks: Joi.array().optional(),
+    }
+)
+
+module.exports.addMultipleChoiceSingleAnswerSchemaValidator = Joi.object(
+    {
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
         prompt: Joi.string().required(),
         options: Joi.array().required(),
         correctAnswers: Joi.array().required(),
+    }
+)
+module.exports.EditMultipleChoiceSingleAnswerSchemaValidator = Joi.object(
+    {
+        type: Joi.string().optional(),
+        subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
+        prompt: Joi.string().optional(),
+        options: Joi.array().optional(),
+        correctAnswers: Joi.array().optional(),
     }
 )
 
@@ -191,8 +259,8 @@ module.exports.addMultipleChoiceSingleAnswerSchemaValidator = Joi.object(
 
 module.exports.readAloudSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
         prompt: Joi.string().required(),
     }
@@ -207,8 +275,8 @@ module.exports.editreadAloudSchemaValidator = Joi.object(
 )
 module.exports.repeatSentenceSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
     }
 )
@@ -223,8 +291,8 @@ module.exports.editrepeatSentenceSchemaValidator = Joi.object(
 
 module.exports.respondToASituationSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
         prompt: Joi.string().required(),
     }
@@ -241,8 +309,8 @@ module.exports.editrespondToASituationSchemaValidator = Joi.object(
 
 module.exports.answerShortQuestionSchemaValidator = Joi.object(
     {
-        type: Joi.string().optional(),
-        subtype: Joi.string().optional(),
+        type: Joi.string().required(),
+        subtype: Joi.string().required(),
         heading: Joi.string().required(),
     }
 )

@@ -1,14 +1,14 @@
 const { addSummarizeSpokenText, addMultipleChoicesAndMultipleAnswers, getAllSummarizeSpokenText, getAllMultipleChoicesAndMultipleAnswers, addListeningFillInTheBlanks, getAllListeningFillInTheBlanks, addMultipleChoiceSingleAnswers, getAllMultipleChoiceSingleAnswers, editSummarizeSpokenText, editMultipleChoicesAndMultipleAnswers, editListeningFillInTheBlanks, editMultipleChoiceSingleAnswers, summerizeSpokenTextResult, multipleChoicesAndMultipleAnswersResult, listeningFillInTheBlanksResult, multipleChoiceSingleAnswerResult } = require('../../controllers/questionsControllers/spoken_test.controller');
 const {isUserLoggedIn, isAdminUser} = require('../../middleware/middlewares');
-const upload = require('../../middleware/upload');
+const createUploadMiddleware = require('../../middleware/upload');
 
 const router = require('express').Router();
 
 
 router.route('/summarize-spoken-text')
     .get(isUserLoggedIn, getAllSummarizeSpokenText)
-    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editSummarizeSpokenText)
-    .post(isUserLoggedIn, isAdminUser, upload.single('voice'),addSummarizeSpokenText);
+    .put(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'), editSummarizeSpokenText)
+    .post(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'),addSummarizeSpokenText);
 
 
 router.post('/summarize-spoken-text/result', isUserLoggedIn, summerizeSpokenTextResult);
@@ -16,22 +16,22 @@ router.post('/summarize-spoken-text/result', isUserLoggedIn, summerizeSpokenText
 
 router.route('/multiple-choice-multiple-answers')
     .get(isUserLoggedIn, getAllMultipleChoicesAndMultipleAnswers)
-    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editMultipleChoicesAndMultipleAnswers)
-    .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addMultipleChoicesAndMultipleAnswers);
+    .put(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'), editMultipleChoicesAndMultipleAnswers)
+    .post(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'), addMultipleChoicesAndMultipleAnswers);
 
 router.post('/multiple-choice-multiple-answers/result', isUserLoggedIn, multipleChoicesAndMultipleAnswersResult);
 
 router.route('/listening-fill-in-the-blanks')
     .get(isUserLoggedIn, getAllListeningFillInTheBlanks)
-    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editListeningFillInTheBlanks)
-    .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addListeningFillInTheBlanks);
+    .put(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'), editListeningFillInTheBlanks)
+    .post(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'), addListeningFillInTheBlanks);
 
 router.post('/listening-fill-in-the-blanks/result', isUserLoggedIn, listeningFillInTheBlanksResult);
 
 router.route('/multiple-choice-single-answers')
     .get(isUserLoggedIn, getAllMultipleChoiceSingleAnswers)
-    .put(isUserLoggedIn, isAdminUser, upload.single('voice'), editMultipleChoiceSingleAnswers)
-    .post(isUserLoggedIn, isAdminUser, upload.single('voice'), addMultipleChoiceSingleAnswers);
+    .put(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'), editMultipleChoiceSingleAnswers)
+    .post(isUserLoggedIn, isAdminUser, createUploadMiddleware(['.mp3']).single('voice'), addMultipleChoiceSingleAnswers);
 
 router.post('/multiple-choice-single-answers/result', isUserLoggedIn, multipleChoiceSingleAnswerResult);
 

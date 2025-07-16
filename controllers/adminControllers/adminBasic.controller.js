@@ -68,14 +68,14 @@ module.exports.getAllUsers = asyncWrapper(async (req, res) => {
         const subscriptions = await supscriptionModel.find({ planType });
         const subscriptionIds = subscriptions.map(sub => sub._id);
 
-        query = { userSupscription: { $in: subscriptionIds } };
+        query = { userSubscription: { $in: subscriptionIds } };
     }
 
     const allUsers = await userModels
         .find(query)
         .limit(limit)
         .skip(skip)
-        .populate("userSupscription")
+        .populate("userSubscription")
         .sort({ createdAt: -1 })
         .select("-password -__v -updatedAt")
         .lean();

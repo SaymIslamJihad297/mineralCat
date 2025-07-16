@@ -12,29 +12,29 @@ router.route('/read_aloud')
     .post(isUserLoggedIn , isAdminUser,addReadAloud);
 
 
-router.post('/read_aloud/result', isUserLoggedIn, createUploadMiddleware(['.mp3']).single('voice'),readAloudResult);
+router.post('/read_aloud/result', isUserLoggedIn, createUploadMiddleware(['.mp3', '.wav']).single('voice'),readAloudResult);
 
 router.route('/repeat_sentence')
     .get(isUserLoggedIn ,getAllRepeatSentence)
-    .put(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3']).single('voice'),editRepeatSentence)
-    .post(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3']).single('voice'),addRepeatSentence);
+    .put(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3', '.wav']).single('voice'),editRepeatSentence)
+    .post(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3', '.wav']).single('voice'),addRepeatSentence);
 
 
-router.post('/repeat_sentence/result', isUserLoggedIn, createUploadMiddleware(['.mp3']).single('voice'),repeatSentenceResult);
+router.post('/repeat_sentence/result', isUserLoggedIn, createUploadMiddleware(['.mp3', '.wav']).single('voice'),repeatSentenceResult);
 
 router.route('/respond-to-a-situation')
     .get(isUserLoggedIn ,getAllRespondToASituation)
-    .put(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3']).single('voice'),editRespondToASituation)
-    .post(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3']).single('voice'),addRespondToASituation);
+    .put(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3', '.wav']).single('voice'),editRespondToASituation)
+    .post(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3', '.wav']).single('voice'),addRespondToASituation);
 
-router.post('/respond-to-a-situation/result', isUserLoggedIn, createUploadMiddleware(['.mp3']).single('voice'),respondToASituationResult);
+router.post('/respond-to-a-situation/result', isUserLoggedIn, createUploadMiddleware(['.mp3', '.wav']).single('voice'),respondToASituationResult);
 
 router.route('/answer_short_question')
     .get(isUserLoggedIn ,getAllAnswerShortQuestion)
-    .put(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3']).single('voice'),editAnswerShortQuestion)
-    .post(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3']).single('voice'),addAnswerShortQuestion);
+    .put(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3', '.wav']).single('voice'),editAnswerShortQuestion)
+    .post(isUserLoggedIn , isAdminUser, createUploadMiddleware(['.mp3', '.wav']).single('voice'),addAnswerShortQuestion);
 
 
-router.post('/answer_short_question/result', isUserLoggedIn, createUploadMiddleware(['.mp3']).single('voice'),answerShortQuestionResult);
+router.post('/answer_short_question/result', isUserLoggedIn, createUploadMiddleware(['.mp3', '.wav']).single('voice'),answerShortQuestionResult);
 
 module.exports = router;

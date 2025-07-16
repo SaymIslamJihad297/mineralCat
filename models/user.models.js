@@ -26,9 +26,9 @@ const userSchema = new Schema({
     phone: {
         type: String,
     },
-    userSupscription: {
+    userSubscription: {
         type: Schema.Types.ObjectId,
-        ref: 'Supscription',
+        ref: 'Subscription',
     },
 
     role: {

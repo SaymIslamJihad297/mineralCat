@@ -98,7 +98,7 @@ router.get('/payment-status/:paymentIntentId', async (req, res) => {
 // Create checkout session
 router.post('/create-checkout-session', isUserLoggedIn, async (req, res) => {
   try {
-    const { price, description, planValidity } = req.body;
+    const { price, description, planValidity, planType } = req.body;
     
     if (!price) {
       return res.status(400).json({
@@ -107,7 +107,7 @@ router.post('/create-checkout-session', isUserLoggedIn, async (req, res) => {
       });
     }
     
-    const paymentDetails = { price, description, planValidity };
+    const paymentDetails = { price, description, planValidity, planType };
     const result = await stripeService.createCheckoutSession(req.user._id, paymentDetails);
     
     res.status(200).json({
@@ -125,42 +125,45 @@ router.post('/create-checkout-session', isUserLoggedIn, async (req, res) => {
 
 // Handle Stripe webhooks
 router.post(
-  '/webhook',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    '/webhook',
+    express.raw({ type: 'application/json' }), // Middleware to parse raw body
+    async (req, res) => {
+        const sig = req.headers['stripe-signature'];
+        const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    if (!endpointSecret) {
-      console.error('Stripe webhook secret not configured');
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
+        if (!endpointSecret) {
+            console.error('Stripe webhook secret (STRIPE_WEBHOOK_SECRET) not configured in environment variables.');
+            return res.status(500).json({ error: 'Server configuration error: Webhook secret missing.' });
+        }
 
-    let event;
-    
-    // Verify webhook signature
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-      console.error(`⚠️  Webhook signature verification failed: ${err.message}`);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+        let event;
 
-    // Process the webhook event
-    try {
-      const result = await stripeService.handleWebhook(event);
-      console.log(`✅ Handled ${event.type} webhook`);
-      return res.json(result);
-    } catch (error) {
-      console.error(`❌ Webhook handler error (${event.type}):`, error);
-      
-      return res.status(error.statusCode || 500).json({
-        status: false,
-        message: error.message || 'Webhook processing failed',
-        event_type: event.type
-      });
+        // Verify webhook signature
+        try {
+            event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        } catch (err) {
+            console.error(`⚠️  Webhook signature verification failed: ${err.message}`);
+            return res.status(400).send(`Webhook Error: Signature verification failed - ${err.message}`);
+        }
+
+        // Process the webhook event
+        try {
+            const result = await stripeService.handleWebhook(event);
+            console.log(`✅ Handled ${event.type} webhook successfully.`);
+            // Send back a 200 OK response to Stripe
+            return res.json(result); 
+        } catch (error) {
+            console.error(`❌ Webhook handler error (${event.type}):`, error);
+            // Even if your internal logic fails, return 200 to Stripe
+            // to prevent Stripe from repeatedly retrying the webhook.
+            // Log the actual error for your own debugging.
+            return res.status(200).json({
+                status: false,
+                message: error.message || 'Webhook processing failed internally',
+                event_type: event.type
+            });
+        }
     }
-  }
 );
 
 module.exports = router;

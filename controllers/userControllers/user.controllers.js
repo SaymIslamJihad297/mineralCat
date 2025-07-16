@@ -35,7 +35,7 @@ module.exports.signUpUser = asyncWrapper(async (req, res) => {
     performanceProgressDetailed: "unauthorized"
   });
 
-  newUser.userSupscription = subscription;
+  newUser.userSubscription = subscription;
   await newUser.save();
 
   const { accessToken, refreshToken } = await accessTokenAndRefreshTokenGenerator(newUser._id);
@@ -152,7 +152,7 @@ module.exports.signupWithGoogle = (req, res) => {
 
 module.exports.userInfo = asyncWrapper(async (req, res) => {
   const user = req.user;
-  const userData = await userModels.findById(user._id).select(['-password']).populate("userSupscription");
+  const userData = await userModels.findById(user._id).select(['-password']).populate("userSubscription");
   return res.status(200).json({ user: userData });
 });
 

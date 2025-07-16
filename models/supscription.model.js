@@ -1,15 +1,15 @@
 const mongoose = require('mongoose');
-const {Schema} = mongoose;
+const { Schema } = mongoose;
 
-
-const supscriptionSchema = new Schema({
+const subscriptionSchema = new Schema({
     user: {
         type: Schema.Types.ObjectId,
         ref: 'User'
     },
     planType: {
         type: String,
-        enum: ['Free', 'Premium'],
+        enum: ['Free', 'Bronze', 'Silver', 'Gold'],
+        required: true,
     },
     isActive: {
         type: Boolean,
@@ -17,31 +17,27 @@ const supscriptionSchema = new Schema({
     },
     mockTestLimit: {
         type: Number,
-        default: 1,
+        default: 5, // Default for Bronze
     },
     aiScoringLimit: {
         type: Number,
-        default: 5,
+        default: 100, // Default for Bronze
     },
-    sectionalMockTestLimit: {
+    credits: {
         type: Number,
-        default: 1,
+        default: 100, // Default for Bronze
     },
-    cyoMockTestLimit: {
-        type: Number,
-        default: 1,
+    weeklyPredictions: {
+        type: Boolean,
+        default: true,
     },
-    templates: {
-        type: Number,
-        default: 5,
+    performanceTracking: {
+        type: Boolean,
+        default: true,
     },
-    studyPlan: {
-        type: String,
-        enum: ['authorized', 'unauthorized']
-    },
-    performanceProgressDetailed : {
-        type: String,
-        enum: ['authorized', 'unauthorized']
+    noExpiration: {
+        type: Boolean,
+        default: true,
     },
     startedAt: {
         type: Date,
@@ -56,6 +52,23 @@ const supscriptionSchema = new Schema({
         amount: Number,
         currency: String
     }
-})
+});
 
-module.exports = mongoose.model('Supscription', supscriptionSchema);
+subscriptionSchema.pre('save', function(next) {
+    if (this.planType === 'Bronze') {
+        this.mockTestLimit = 5;
+        this.aiScoringLimit = 100;
+        this.credits = 100;
+    } else if (this.planType === 'Silver') {
+        this.mockTestLimit = 10;
+        this.aiScoringLimit = 300;
+        this.credits = 300;
+    } else if (this.planType === 'Gold') {
+        this.mockTestLimit = 15;
+        this.aiScoringLimit = 700;
+        this.credits = 700;
+    }
+    next();
+});
+
+module.exports = mongoose.model('Subscription', subscriptionSchema);

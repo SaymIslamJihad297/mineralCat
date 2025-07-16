@@ -5,7 +5,7 @@ const httpStatus = require('http-status');
 // Import models
 const StripePaymentGateway = require('../models/payment.model');
 const User = require('../models/user.models');
-const supscriptionModel = require('../models/supscription.model');
+const Subscription = require('../models/supscription.model');
 
 /**
  * Configuration setup for Stripe integration
@@ -193,10 +193,10 @@ async function createPaymentIntent(userId, paymentDetails) {
     const amountInCents = Math.round(price * 100);
 
     console.log(userId, planValidity);
-    
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
-      currency: 'usd',
+      currency: 'eur',
       description,
       metadata: {
         userId: userId,
@@ -274,18 +274,51 @@ async function retrievePaymentStatus(paymentIntentId) {
  * @param {Object} paymentDetails - Payment details including price and description
  * @returns {Promise<Object>} - Checkout session details
  */
+// Fixed createCheckoutSession function
 async function createCheckoutSession(userId, paymentDetails) {
   try {
     const {
       price,
       description = 'Truck rental payment',
       planValidity,
+      planType
     } = paymentDetails;
 
+    // Add validation for required fields
     if (!price || price <= 0) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
         'Price must be a positive number'
+      );
+    }
+
+    if (!planType) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'planType is required'
+      );
+    }
+
+    // validation of price
+    const planPrices = {
+      'Bronze': 29.99,
+      'Silver': 49.99,
+      'Gold': 69.99
+    };
+
+    const expectedPrice = planPrices[planType];
+
+    if (!expectedPrice) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Invalid plan type: ${planType}. Available plans: Bronze, Silver, Gold`
+      );
+    }
+
+    if (parseFloat(price) !== expectedPrice) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Invalid price for ${planType} plan. Expected: €${expectedPrice}, received: €${price}`
       );
     }
 
@@ -306,7 +339,7 @@ async function createCheckoutSession(userId, paymentDetails) {
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'eur',
             product_data: {
               name: 'Service Payment',
               description: description,
@@ -317,8 +350,9 @@ async function createCheckoutSession(userId, paymentDetails) {
         },
       ],
       metadata: {
-        userId: userId,
-        planValidity,
+        userId: userId.toString(), // Ensure string conversion
+        planValidity: planValidity ? planValidity.toString() : '30',
+        planType: planType.toString()
       },
       mode: 'payment',
       success_url: `${config.stripe_payment_gateway.checkout_success_url}?sessionId={CHECKOUT_SESSION_ID}`,
@@ -334,6 +368,7 @@ async function createCheckoutSession(userId, paymentDetails) {
       paymentStatus: session.payment_status,
       price: paymentDetails.price,
       description: paymentDetails.description,
+      planType: paymentDetails.planType,
     };
 
     const paymentResult = await StripePaymentGateway.create(paymentData);
@@ -361,12 +396,7 @@ async function createCheckoutSession(userId, paymentDetails) {
   }
 }
 
-
-/**
- * Handles webhook events from Stripe
- * @param {Object} event - Stripe webhook event
- * @returns {Promise<Object>} - Result of webhook processing
- */
+// Fixed handleWebhook function with better error handling
 async function handleWebhook(event) {
   let result = {
     status: false,
@@ -377,136 +407,168 @@ async function handleWebhook(event) {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object;
+        console.log(`Webhook: Payment Intent Succeeded - ${paymentIntent.id}`);
 
         if (!paymentIntent.id) {
-          throw new ApiError(
-            httpStatus.NOT_FOUND,
-            `Issues with payment intent ID: ${paymentIntent.id}`
-          );
+          throw new Error(`Issues with payment intent ID: ${paymentIntent.id}`);
         }
-
-        // Handle successful payment
-        // You could add additional logic here to update order status, etc.
 
         result = {
           status: true,
-          message: 'Payment Successful',
+          message: 'Payment Successful (PaymentIntent)',
         };
         break;
       }
 
       case 'account.updated': {
         const account = event.data.object;
-        if (!account.id) {
-          throw new ApiError(
-            httpStatus.NOT_FOUND,
-            `Issues with account ID: ${account.id} update`
-          );
-        }
+        console.log(`Webhook: Account Updated - ${account.id}`);
 
-        // You could update user details based on stripe account update here
+        if (!account.id) {
+          throw new Error(`Issues with account ID: ${account.id} update`);
+        }
 
         result = {
           status: true,
-          message: 'Account updated',
+          message: 'Stripe Account updated',
         };
         break;
       }
 
       case 'checkout.session.completed': {
         const session = event.data.object;
+        console.log(`Webhook: Checkout Session Completed - ${session.id}`);
 
-        if (!session) {
-          throw new ApiError(
-            httpStatus.NO_CONTENT,
-            'Issues with checkout session completion'
-          );
+        // Essential check: ensure payment was actually successful
+        if (session.payment_status !== 'paid') {
+          console.log(`Checkout session ${session.id} not paid. Status: ${session.payment_status}. Skipping subscription update.`);
+          result = {
+            status: true,
+            message: `Checkout session ${session.id} status is ${session.payment_status}, no subscription update.`,
+          };
+          break;
         }
 
-        // First, record the payment details
-        const recordedPayment = await StripePaymentGateway.findOneAndUpdate(
-          {
-            userId: session.metadata.userId,
-            sessionId: session.id,
-          },
-          {
-            $set: {
-              currency: session.currency,
-              paymentMethod: session.payment_method_types[0],
-              paymentStatus: session.payment_status,
-              price: session.amount_total / 100, // Convert back to dollars
-              description: session.description,
-              planValidity: session.metadata.planValidity,
-              payableName: session.customer_details?.name,
-              payableEmail: session.customer_details?.email,
-              paymentIntent: session.payment_intent,
-              paymentIntentId: session.payment_intent,
-              clientSecret: session.client_secret,
-              isPayment: true,
-              country: session.customer_details?.address?.country,
-            },
-          },
-          { new: true, upsert: true }
-        );
 
-        if (!recordedPayment) {
-          throw new ApiError(
-            httpStatus.NOT_IMPLEMENTED,
-            'Issues with recording payment information'
-          );
+        // Improved metadata validation with detailed logging
+        if (!session.metadata) {
+          console.error('No metadata found in checkout session');
+          throw new Error('No metadata found in checkout session');
         }
 
-        const updatedUser = await supscriptionModel.findOneAndUpdate(
-          { user: session.metadata.userId },
-          {
-            $set: {
-              planType: 'Premium',
+        if (!session.metadata.userId) {
+          console.error('Missing userId in checkout session metadata');
+          throw new Error('Missing userId in checkout session metadata');
+        }
+
+        if (!session.metadata.planType) {
+          console.error('Missing planType in checkout session metadata');
+          console.error('Available metadata keys:', Object.keys(session.metadata));
+          throw new Error('Missing planType in checkout session metadata');
+        }
+
+        const userId = session.metadata.userId;
+        const planType = session.metadata.planType;
+        const transactionId = session.payment_intent || session.id;
+        const amountPaid = session.amount_total / 100;
+        const currency = session.currency;
+
+        // Determine plan validity in days
+        const planValidityDays = parseInt(session.metadata.planValidity, 10);
+
+        if (isNaN(planValidityDays)) {
+          console.error(`Invalid planValidity: ${session.metadata.planValidity}. Using default 30 days.`);
+        }
+
+        const now = new Date();
+        let expiresAt = null;
+
+        // Set expiration logic
+        if (planType !== 'Gold' && planValidityDays > 0) {
+          expiresAt = new Date(now);
+          expiresAt.setDate(now.getDate() + planValidityDays);
+        } else if (planType === 'Gold') {
+          expiresAt = null; // No expiration for Gold
+        }
+
+        try {
+          // --- 1. Create/Update Subscription Document ---
+          let subscription = await Subscription.findOne({ user: userId });
+
+          if (subscription) {
+            // Update existing subscription
+            subscription.planType = planType;
+            subscription.isActive = true;
+            subscription.startedAt = new Date();
+            subscription.expiresAt = expiresAt;
+            subscription.paymentInfo = {
+              transactionId: transactionId,
+              provider: 'stripe',
+              amount: amountPaid,
+              currency: currency,
+            };
+            await subscription.save();
+            console.log(`Subscription updated for user ${userId} to plan: ${planType}`);
+
+          } else {
+            // Create a new subscription document
+            subscription = new Subscription({
+              user: userId,
+              planType: planType,
               isActive: true,
-              mockTestLimit: -1,
-              aiScoringLimit: -1,
-              sectionalMockTestLimit: -1,
-              cyoMockTestLimit: -1,
-              templates: -1,
-              studyPlan: 'authorized',
-              performanceProgressDetailed: 'authorized',
               startedAt: new Date(),
-              expiresAt: new Date(Date.now() + parseInt(session.metadata.planValidity) * 24 * 60 * 60 * 1000),
+              expiresAt: expiresAt,
               paymentInfo: {
-                transactionId: session.payment_intent,
+                transactionId: transactionId,
                 provider: 'stripe',
-                amount: session.amount_total / 100,
-                currency: session.currency,
+                amount: amountPaid,
+                currency: currency,
               },
-            },
-          },
-          { new: true }
-        );
+            });
+            await subscription.save();
+            console.log(`New subscription created for user ${userId} with plan: ${planType}`);
+          }
 
-        if (!updatedUser) {
-          throw new ApiError(
-            httpStatus.NOT_FOUND,
-            `User with ID ${session.metadata.userId} not found or subscription update failed`
-          );
+          // --- 2. Update User's `userSubscription` reference ---
+          const user = await User.findById(userId);
+          if (user) {
+            if (!user.userSubscription || user.userSubscription.toString() !== subscription._id.toString()) {
+              user.userSubscription = subscription._id;
+              await user.save();
+              console.log(`User ${userId} 'userSubscription' field updated.`);
+            } else {
+              console.log(`User ${userId} 'userSubscription' field already correct.`);
+            }
+          } else {
+            console.error(`User with ID ${userId} not found after successful payment. Subscription created, but user not linked.`);
+          }
+
+          result = {
+            status: true,
+            message: 'Subscription successfully processed and user updated.',
+          };
+
+        } catch (dbError) {
+          console.error(`Database error during checkout.session.completed processing for user ${userId}:`, dbError);
+          throw new Error(`Database operation failed during subscription update: ${dbError.message}`);
         }
-
-        console.log('Subscription updated successfully:', updatedUser.planType);
-
-        result = {
-          status: true,
-          message: 'Session data and subscription successfully updated',
-        };
         break;
       }
 
       default: {
         console.log(`Unhandled event type ${event.type}`);
+        result = {
+          status: false,
+          message: `Unhandled event type: ${event.type}`,
+        };
         break;
       }
     }
 
     return result;
+
   } catch (error) {
-    console.error('Webhook handling error:', error);
+    console.error('Webhook handling error (catch block):', error);
     throw error;
   }
 }

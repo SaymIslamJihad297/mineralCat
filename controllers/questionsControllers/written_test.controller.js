@@ -89,8 +89,6 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
     if(question.subtype!=='summarize_written_text'){
         throw new ExpressError(401, "this is not valid questionType for this route!")
     }
-
-    console.log(question.subtype);
     
 
     const originalParagraph = question.text;
@@ -137,8 +135,6 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
             max_tokens: 500,
             temperature: 0.7,
         });
-
-        console.log("GPT Response:", gptResponse.choices[0].message.content);
 
         const gptResult = gptResponse.choices[0].message.content;
 

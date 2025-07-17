@@ -17,27 +17,27 @@ const subscriptionSchema = new Schema({
     },
     mockTestLimit: {
         type: Number,
-        default: 5, // Default for Bronze
+        default: 0, // Default for Bronze
     },
     aiScoringLimit: {
         type: Number,
-        default: 100, // Default for Bronze
+        default: 0, // Default for Bronze
     },
     credits: {
         type: Number,
-        default: 100, // Default for Bronze
+        default: 0, // Default for Bronze
     },
     weeklyPredictions: {
         type: Boolean,
-        default: true,
+        default: false,
     },
     performanceTracking: {
         type: Boolean,
-        default: true,
+        default: false,
     },
     noExpiration: {
         type: Boolean,
-        default: true,
+        default: false,
     },
     startedAt: {
         type: Date,

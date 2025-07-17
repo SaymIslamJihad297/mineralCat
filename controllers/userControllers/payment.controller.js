@@ -35,7 +35,6 @@ module.exports.webHook = (bodyParser.raw({ type: 'application/json' }),(req, res
     // Handle successful payment
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object;
-      console.log('Payment succeeded:', paymentIntent);
       // Update subscription or DB here
       
     }

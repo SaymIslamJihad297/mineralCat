@@ -82,7 +82,6 @@ const downloadAndSaveAudio = async (audioUrl) => {
             response.pipe(fileStream);
 
             fileStream.on('finish', () => {
-                console.log(`Audio downloaded and saved to ${filePath}`);
                 resolve(filePath);
             });
 
@@ -175,7 +174,6 @@ async function addQuestion(validator, data, userId, audioFile = null, folderName
         if (audioFile && convertToText === true) {
         const audioFilePath = audioFile.path;
         const userFileBase64 = readFileAsBase64(audioFilePath);
-        console.log(audioFile);
         const audioFormat = detectAudioFormat(audioFilePath);
         const expectedText = "sdfsdfsfsdff"
 
@@ -662,7 +660,6 @@ Please provide the following result in this format and Format your response as J
             temperature: 0.3,
             max_tokens: 500
         });
-        console.log("GPT Response:", response.choices[0].message.content);
         const result = JSON.parse(response.choices[0].message.content);
 
         res.status(200).json({ success: true, result });

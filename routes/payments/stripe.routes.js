@@ -126,7 +126,7 @@ router.post('/create-checkout-session', isUserLoggedIn, async (req, res) => {
 // Handle Stripe webhooks
 router.post(
     '/webhook',
-    express.raw({ type: 'application/json' }), // Middleware to parse raw body
+    express.raw({ type: 'application/json' }),
     async (req, res) => {
         const sig = req.headers['stripe-signature'];
         const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -150,13 +150,9 @@ router.post(
         try {
             const result = await stripeService.handleWebhook(event);
             console.log(`✅ Handled ${event.type} webhook successfully.`);
-            // Send back a 200 OK response to Stripe
             return res.json(result); 
         } catch (error) {
             console.error(`❌ Webhook handler error (${event.type}):`, error);
-            // Even if your internal logic fails, return 200 to Stripe
-            // to prevent Stripe from repeatedly retrying the webhook.
-            // Log the actual error for your own debugging.
             return res.status(200).json({
                 status: false,
                 message: error.message || 'Webhook processing failed internally',

@@ -24,7 +24,6 @@ function readFileAsBase64(filePath) {
 }
 const downloadAndEncodeAudio = async (audioUrl) => {
     return new Promise((resolve, reject) => {
-        console.log('Downloading audio from:', audioUrl);
 
         https.get(audioUrl, (response) => {
             if (response.statusCode !== 200) {
@@ -50,7 +49,6 @@ const downloadAndEncodeAudio = async (audioUrl) => {
                     const audioBuffer = Buffer.concat(data);
                     const audioBase64 = audioBuffer.toString('base64');
 
-                    console.log(`Audio downloaded: ${totalLength} bytes`);
                     resolve({
                         base64: audioBase64,
                         size: totalLength,
@@ -162,8 +160,6 @@ Format your response as JSON:
             max_tokens: 500
         });
 
-        // Log the result and return it
-        console.log("GPT Response:", response.choices[0].message.content);
         return JSON.parse(response.choices[0].message.content);
     } catch (error) {
         console.error('Error calling ChatGPT:', error);
@@ -335,7 +331,6 @@ module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
             throw new Error('Could not extract transcript from API response');
         }
 
-        console.log('Sending to ChatGPT for assessment...');
         const chatGPTAssessment = await scoreWithChatGPT(originalTranscript, userSummary);
 
         const finalResult = {
@@ -358,7 +353,6 @@ module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
             }
         };
 
-        console.log('Assessment complete!');
         return res.status(200).json(finalResult);
 
     } catch (error) {
@@ -616,10 +610,8 @@ module.exports.listeningFillInTheBlanksResult = asyncWrapper(async (req, res) =>
     if (question.subtype !== 'listening_fill_in_the_blanks') {
         throw new ExpressError(401, "This is not a valid questionType for this route!");
     }
-    console.log(question);
 
     const blanks = question.blanks;
-    console.log(blanks);
 
     let score = 0;
 
@@ -754,7 +746,6 @@ module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res)
 module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
 
-    console.log(selectedAnswers.length);
 
     if (selectedAnswers.length > 1) {
         throw new ExpressError(401, "multiple answer is not allowed!");

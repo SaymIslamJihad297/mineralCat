@@ -1,5 +1,5 @@
 const { forgetPassword, verifyOtp, resetPassword } = require('../../controllers/userControllers/otpController');
-const { userInfo, updateUser } = require('../../controllers/userControllers/user.controllers');
+const { userInfo, updateUser, getAQuestion } = require('../../controllers/userControllers/user.controllers');
 const { isUserLoggedIn } = require('../../middleware/middlewares');
 const createUploadMiddleware = require('../../middleware/upload');
 
@@ -18,5 +18,7 @@ router.put('/reset-password', resetPassword);
 router.put('/update-user', isUserLoggedIn, createUploadMiddleware(['.jpg', '.png', 'jpeg']).single('profile'),updateUser);
 
 router.get('/user-info', isUserLoggedIn,userInfo);
+
+router.get('/get-question/:id', isUserLoggedIn, getAQuestion);
 
 module.exports = router;

@@ -8,6 +8,7 @@ const supscriptionModel = require('../../models/supscription.model');
 const fs = require('node:fs');
 const cloudinary = require('../../middleware/cloudinary.config');
 const path = require('node:path');
+const questionModel = require('../../models/questions.model');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -178,3 +179,12 @@ module.exports.updateUser = asyncWrapper(async (req, res) => {
   const userData = await userModels.findByIdAndUpdate(user._id, {...data, profile: result.secure_url}, { new: true }).select(['-password']);
   return res.status(200).json({ user: userData });
 });
+
+
+module.exports.getAQuestion = asyncWrapper(async(req, res)=>{
+  const question = await questionModel.findById(req.params.id);
+
+  console.log(question);
+
+  res.status(200).json({question});
+})

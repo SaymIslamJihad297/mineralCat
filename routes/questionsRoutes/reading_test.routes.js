@@ -42,6 +42,7 @@ router.route('/reorder-paragraphs')
     .put(isUserLoggedIn, isAdminUser, editReorderParagraphs);
 
 router.get('/reorder-a-paragraph/:questionId', isUserLoggedIn, getAReorderParagraph);
+
 router.post('/reorder-paragraphs/result', isUserLoggedIn, checkLimit(['aicredits']),reorderParagraphsResult);
 
 // router.delete('/delete/question', isUserLoggedIn, isAdminUser,deleteQuestion);

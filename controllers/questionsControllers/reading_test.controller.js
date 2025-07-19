@@ -14,6 +14,8 @@ const {
 } = require('../../validations/schemaValidations');
 const ExpressError = require('../../utils/ExpressError');
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
+const practicedModel = require('../../models/practiced.model');
+const { getQuestionByQuery } = require('../../common/getQuestionFunction');
 
 // Helper to validate and save questions
 async function validateAndSaveQuestion(validator, data, userId, subtype) {
@@ -38,19 +40,6 @@ async function validateAndUpdateQuestion(validator, questionId, data) {
     return updatedQuestion;
 }
 
-// Helper to get all questions with pagination
-async function getQuestions(subtype, page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
-    const questions = await Question.find({ subtype })
-        .skip(skip)
-        .limit(limit)
-        .sort({ createdAt: -1 })
-        .lean();
-
-
-    const questionsCount = await Question.countDocuments({ subtype });
-    return { questions, questionsCount };
-}
 
 // ---------------------- reading and writing fill in the blanks ----------------------
 module.exports.addFillInTheBlanks = asyncWrapper(async (req, res) => {
@@ -69,10 +58,12 @@ module.exports.addFillInTheBlanks = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getAllFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getQuestions('rw_fill_in_the_blanks', page, limit);
-    res.status(200).json(result);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'rw_fill_in_the_blanks', page, limit, req, res);
 });
+
 
 module.exports.editFillIntheBlanks = asyncWrapper(async (req, res) => {
     const newData = req.body.newData;
@@ -81,7 +72,7 @@ module.exports.editFillIntheBlanks = asyncWrapper(async (req, res) => {
         throw new ExpressError(400, "New data is required");
     }
 
-    if ( (newData.type && newData.type != 'reading') || ( newData.subtype && newData.subtype != 'rw_fill_in_the_blanks')) {
+    if ((newData.type && newData.type != 'reading') || (newData.subtype && newData.subtype != 'rw_fill_in_the_blanks')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
@@ -105,11 +96,12 @@ module.exports.addMcqMultiple = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getMcqMultiple = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getQuestions('mcq_multiple', page, limit);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
 
-    res.status(200).json(result);
+    getQuestionByQuery(query, 'mcq_multiple', page, limit, req, res);
 });
+
 
 module.exports.editMcqMultiple = asyncWrapper(async (req, res) => {
     const newData = req.body.newData;
@@ -118,7 +110,7 @@ module.exports.editMcqMultiple = asyncWrapper(async (req, res) => {
         throw new ExpressError(400, "New data is required");
     }
 
-    if ( (newData.type && newData.type != 'reading') || ( newData.subtype && newData.subtype != 'mcq_multiple')) {
+    if ((newData.type && newData.type != 'reading') || (newData.subtype && newData.subtype != 'mcq_multiple')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
     const updatedQuestion = await validateAndUpdateQuestion(EditmcqMultipleSchemaValidator, req.body.questionId, newData);
@@ -135,6 +127,18 @@ module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
     const correctAnswers = question.correctAnswers;
     const score = selectedAnswers.filter(answer => correctAnswers.includes(answer)).length;
     const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
 
     return res.status(200).json({ score, feedback });
 });
@@ -153,16 +157,18 @@ module.exports.addMcqSingle = asyncWrapper(async (req, res) => {
     }
 
     if (newData.correctAnswers.length > 1) throw new ExpressError(400, "Multiple answers not allowed for mcq_single");
-    
+
     const newQuestion = await validateAndSaveQuestion(mcqSingleSchemaValidator, newData, req.user._id, 'mcq_single');
     res.status(200).json({ data: newQuestion });
 });
 
 module.exports.getMcqSingle = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getQuestions('mcq_single', page, limit);
-    res.status(200).json(result);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'mcq_single', page, limit, req, res);
 });
+;
 
 module.exports.editMcqSingle = asyncWrapper(async (req, res) => {
     const newData = req.body.newData;
@@ -171,7 +177,7 @@ module.exports.editMcqSingle = asyncWrapper(async (req, res) => {
         throw new ExpressError(400, "New data is required");
     }
 
-    if ( (newData.type && newData.type != 'reading') || ( newData.subtype && newData.subtype != 'mcq_single')) {
+    if ((newData.type && newData.type != 'reading') || (newData.subtype && newData.subtype != 'mcq_single')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
 
@@ -190,6 +196,19 @@ module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
     }
 
     const isCorrect = question.correctAnswers.includes(userAnswer);
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
+
     return res.status(200).json({ isCorrect, message: isCorrect ? "Correct answer!" : "Incorrect answer!" });
 });
 
@@ -204,7 +223,7 @@ module.exports.addReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
     if (newData.type != 'reading' || newData.subtype != 'reading_fill_in_the_blanks') {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
-    
+
     const newQuestion = await validateAndSaveQuestion(readingFillInTheBlanksSchemaValidator, newData, req.user._id, 'reading_fill_in_the_blanks');
     res.status(200).json({ data: newQuestion });
 });
@@ -216,7 +235,7 @@ module.exports.editReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
         throw new ExpressError(400, "New data is required");
     }
 
-    if ( (newData.type && newData.type != 'reading') || ( newData.subtype && newData.subtype != 'reading_fill_in_the_blanks')) {
+    if ((newData.type && newData.type != 'reading') || (newData.subtype && newData.subtype != 'reading_fill_in_the_blanks')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
 
@@ -225,9 +244,12 @@ module.exports.editReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const allReadingFillInTheBlanks = await Question.find({ subtype: "reading_fill_in_the_blanks" }).sort({ createdAt: -1 });
-    res.status(200).json({ data: allReadingFillInTheBlanks });
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'reading_fill_in_the_blanks', page, limit, req, res);
 });
+
 
 module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
     const { questionId, blanks } = req.body;
@@ -248,6 +270,18 @@ module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
 
     const result = { score, totalBlanks };
     const feedback = `You scored ${score} out of ${totalBlanks}.`;
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
 
     return res.status(200).json({ result, feedback });
 });
@@ -275,7 +309,7 @@ module.exports.editReorderParagraphs = asyncWrapper(async (req, res) => {
         throw new ExpressError(400, "New data is required");
     }
 
-    if ( (newData.type && newData.type != 'reading') || ( newData.subtype && newData.subtype != 'reorder_paragraphs')) {
+    if ((newData.type && newData.type != 'reading') || (newData.subtype && newData.subtype != 'reorder_paragraphs')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
 
@@ -284,10 +318,12 @@ module.exports.editReorderParagraphs = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getReorderParagraphs = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getQuestions('reorder_paragraphs', page, limit);
-    res.status(200).json(result);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'reorder_paragraphs', page, limit, req, res);
 });
+
 
 module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
     const { questionId } = req.params;
@@ -331,6 +367,19 @@ module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
     });
 
     const totalScore = (score / correctAnswers.length) * 100;
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
+
     return res.status(200).json({
         score: totalScore,
         message: `You scored ${score} out of ${correctAnswers.length} points.`,

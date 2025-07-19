@@ -4,6 +4,8 @@ const { addSummarizeTextSchemaValidator, writeEmailSchemaValidator, EditWriteEma
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const { default: axios } = require("axios");
 const { OpenAI } = require('openai');
+const practicedModel = require("../../models/practiced.model");
+const { getQuestionByQuery } = require("../../common/getQuestionFunction");
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -64,15 +66,9 @@ module.exports.editSummarizeWrittenText = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getSummarizeWrittenText = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const questions = await questionsModel.find({ subtype: "summarize_written_text" })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'summarize_written_text' });
-    res.status(200).json({ questions, questionsCount });
+    const query = req.query.filter;
+    const {page, limit} = req.query;
+    getQuestionByQuery(query, 'summarize_written_text', page, limit,req, res);
 })
 module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
     const { questionId, userSummary } = req.body;
@@ -86,10 +82,10 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
         throw new ExpressError(404, "Question not found");
     }
 
-    if(question.subtype!=='summarize_written_text'){
+    if (question.subtype !== 'summarize_written_text') {
         throw new ExpressError(401, "this is not valid questionType for this route!")
     }
-    
+
 
     const originalParagraph = question.text;
 
@@ -139,6 +135,19 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
         const gptResult = gptResponse.choices[0].message.content;
 
         const parsedResult = parseGPTResponse(gptResult);
+
+        await practicedModel.findOneAndUpdate(
+            {
+                user: req.user._id,
+                questionType: question.type,
+                subtype: question.subtype
+            },
+            {
+                $addToSet: { practicedQuestions: question._id }
+            },
+            { upsert: true, new: true }
+        );
+
         return res.status(200).json(parsedResult);
     } catch (error) {
         console.error(error);
@@ -171,7 +180,7 @@ module.exports.addWriteEmail = asyncWrapper(async (req, res) => {
     if (req.body.type != 'writing' || req.body.subtype != 'write_email') {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
-    
+
     const { error, value } = writeEmailSchemaValidator.validate(req.body);
 
     const { type = 'writing', subtype = 'write_email', heading, prompt } = value;
@@ -218,15 +227,10 @@ module.exports.editWriteEmail = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getWriteEmail = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const query = req.query.filter;
+    const {page, limit} = 10;
 
-    const questions = await questionsModel.find({ subtype: "write_email" })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'write_email' });
-    res.status(200).json({ questions, questionsCount });
+    getQuestionByQuery(query, 'write_email', page, limit,req, res);
 })
 
 module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
@@ -240,7 +244,7 @@ module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
     if (!question) {
         throw new ExpressError(404, "Question not found");
     }
-    if(question.subtype!=='write_email'){
+    if (question.subtype !== 'write_email') {
         throw new ExpressError(401, "this is not valid questionType for this route!")
     }
 
@@ -302,28 +306,40 @@ module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
 
 
     // try {
-        const gptResponse = await openai.chat.completions.create({
-            model: 'gpt-4',
-            messages: [
-                {
-                    role: "system",
-                    content: "You are an expert at evaluating emails."
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            max_tokens: 500,
-            temperature: 0.7,
-        });
+    const gptResponse = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+            {
+                role: "system",
+                content: "You are an expert at evaluating emails."
+            },
+            {
+                role: "user",
+                content: prompt
+            }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+    });
 
-        // console.log("GPT Response:", gptResponse.choices[0].message.content);
+    // console.log("GPT Response:", gptResponse.choices[0].message.content);
 
-        const gptResult = gptResponse.choices[0].message.content;
-        const parsedResult = parseGPTResponseForWriteEmail(gptResult);
+    const gptResult = gptResponse.choices[0].message.content;
+    const parsedResult = parseGPTResponseForWriteEmail(gptResult);
 
-        return res.status(200).json(parsedResult);
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
+
+    return res.status(200).json(parsedResult);
     // } catch (error) {
     //     console.error(error);
     //     throw new ExpressError(500, "An error occurred while processing the request.");

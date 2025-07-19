@@ -8,6 +8,8 @@ const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const https = require('https');
 const axios = require('axios');
 const { OpenAI } = require('openai');
+const practicedModel = require('../../models/practiced.model');
+const { getQuestionByQuery } = require('../../common/getQuestionFunction');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -295,18 +297,12 @@ module.exports.editSummarizeSpokenText = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getAllSummarizeSpokenText = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const query = req.query.filter;
+    const { page, limit } = req.query;
 
-    const questions = await questionsModel.find({ subtype: 'summarize_spoken_text' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
+    getQuestionByQuery(query, 'summarize_spoken_text', page, limit, req, res);
+});
 
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'summarize_spoken_text' });
-    res.status(200).json({ questions, questionsCount });
-})
 
 
 module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
@@ -352,6 +348,19 @@ module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
                 }
             }
         };
+
+        await practicedModel.findOneAndUpdate(
+            {
+                user: req.user._id,
+                questionType: question.type,
+                subtype: question.subtype
+            },
+            {
+                $addToSet: { practicedQuestions: question._id }
+            },
+            { upsert: true, new: true }
+        );
+
 
         return res.status(200).json(finalResult);
 
@@ -460,17 +469,11 @@ module.exports.editMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req, 
 })
 
 module.exports.getAllMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const query = req.query.filter;
+    const { page, limit } = req.query;
 
-    const questions = await questionsModel.find({ subtype: 'listening_multiple_choice_multiple_answers' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'listening_multiple_choice_multiple_answers' });
-    res.status(200).json({ questions, questionsCount });
-})
+    getQuestionByQuery(query, 'listening_multiple_choice_multiple_answers', page, limit, req, res);
+});
 
 module.exports.multipleChoicesAndMultipleAnswersResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
@@ -499,6 +502,18 @@ module.exports.multipleChoicesAndMultipleAnswersResult = asyncWrapper(async (req
     };
 
     const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
 
     return res.status(200).json({
         result,
@@ -587,17 +602,12 @@ module.exports.editListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getAllListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const query = req.query.filter;
+    const { page, limit } = req.query;
 
-    const questions = await questionsModel.find({ subtype: 'listening_fill_in_the_blanks' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'listening_fill_in_the_blanks' });
-    res.status(200).json({ questions, questionsCount });
+    getQuestionByQuery(query, 'listening_fill_in_the_blanks', page, limit, req, res);
 });
+
 
 module.exports.listeningFillInTheBlanksResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
@@ -630,6 +640,19 @@ module.exports.listeningFillInTheBlanksResult = asyncWrapper(async (req, res) =>
     };
 
     const feedback = `You scored ${score} out of ${blanks.length}.`;
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
+
 
     return res.status(200).json({
         result,
@@ -731,17 +754,12 @@ module.exports.editMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) =
 });
 
 module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const query = req.query.filter;
+    const { page, limit } = req.query;
 
-    const questions = await questionsModel.find({ subtype: 'listening_multiple_choice_single_answers' })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-    if (!questions) throw new ExpressError('No question found', 404);
-    const questionsCount = await questionsModel.countDocuments({ subtype: 'listening_multiple_choice_single_answers' });
-    res.status(200).json({ questions, questionsCount });
+    getQuestionByQuery(query, 'listening_multiple_choice_single_answers', page, limit, req, res);
 });
+
 
 module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
@@ -776,6 +794,18 @@ module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async (req, res) 
     };
 
     const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: req.user._id,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
 
     return res.status(200).json({
         result,

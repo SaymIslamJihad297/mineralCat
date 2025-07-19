@@ -1,6 +1,6 @@
 const { Schema, default: mongoose } = require('mongoose');
 
-const practicedSchema = Schema({
+const bookmark = Schema({
     user: {
         type: Schema.Types.ObjectId,
         ref: 'User',
@@ -15,13 +15,13 @@ const practicedSchema = Schema({
         type: String,
         required: true
     },
-    practicedQuestions: [{
+    bookmarkedQuestions: [{
         type: Schema.Types.ObjectId,
         ref: 'Question',
     }]
 });
 
 // Optional: Add a compound unique index to avoid duplicate entries
-practicedSchema.index({ user: 1, questionType: 1, subtype: 1 }, { unique: true });
+bookmark.index({ user: 1, questionType: 1, subtype: 1 }, { unique: true });
 
-module.exports = mongoose.model('Practice', practicedSchema);
+module.exports = mongoose.model('Practice', bookmark);

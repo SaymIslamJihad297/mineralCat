@@ -18,6 +18,8 @@ const { default: axios } = require("axios");
 const fsPromises = require('fs').promises;
 const https = require('https');
 const { OpenAI } = require('openai');
+const practicedModel = require("../../models/practiced.model");
+const { getQuestionByQuery } = require("../../common/getQuestionFunction");
 
 
 const openai = new OpenAI({
@@ -171,7 +173,7 @@ async function addQuestion(validator, data, userId, audioFile = null, folderName
         createdBy: userId,
     };
 
-        if (audioFile && convertToText === true) {
+    if (audioFile && convertToText === true) {
         const audioFilePath = audioFile.path;
         const userFileBase64 = readFileAsBase64(audioFilePath);
         const audioFormat = detectAudioFormat(audioFilePath);
@@ -259,6 +261,18 @@ async function handleSpeechAssessment(req, res, expectedSubtype, useDirectPrompt
 
         await safeDeleteFile(userFilePath);
 
+        await practicedModel.findOneAndUpdate(
+            {
+                user: req.user._id,
+                questionType: question.type,
+                subtype: question.subtype
+            },
+            {
+                $addToSet: { practicedQuestions: question._id }
+            },
+            { upsert: true, new: true }
+        );
+
         return res.status(200).json({
             success: true,
             data: response
@@ -306,7 +320,7 @@ module.exports.editReadAloud = asyncWrapper(async (req, res) => {
         throw new ExpressError(400, "New data is required");
     }
 
-    if ( (newData.type && newData.type != 'speaking') || ( newData.subtype && newData.subtype != 'read_aloud')) {
+    if ((newData.type && newData.type != 'speaking') || (newData.subtype && newData.subtype != 'read_aloud')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
 
@@ -327,9 +341,10 @@ module.exports.editReadAloud = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getAllReadAloud = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getAllQuestions('read_aloud', page, limit);
-    res.status(200).json(result);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'read_aloud', page, limit, req, res);
 });
 
 module.exports.readAloudResult = asyncWrapper(async (req, res) => {
@@ -398,10 +413,12 @@ module.exports.editRepeatSentence = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getAllQuestions('repeat_sentence', page, limit);
-    res.status(200).json(result);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'repeat_sentence', page, limit, req, res);
 });
+
 
 module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
     const { questionId, accent = 'us' } = req.body;
@@ -427,6 +444,18 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
 
         await safeDeleteFile(userFilePath);
 
+        await practicedModel.findOneAndUpdate(
+            {
+                user: req.user._id,
+                questionType: question.type,
+                subtype: question.subtype
+            },
+            {
+                $addToSet: { practicedQuestions: question._id }
+            },
+            { upsert: true, new: true }
+        );
+
         return res.status(200).json({
             success: true,
             data: finalResponse
@@ -443,7 +472,7 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
 // ============================================================
 
 module.exports.addRespondToASituation = asyncWrapper(async (req, res) => {
-    if(!req.file){
+    if (!req.file) {
         throw new ExpressError(400, "File is Required");
     }
     const newData = req.body;
@@ -502,10 +531,12 @@ module.exports.editRespondToASituation = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getAllQuestions('respond_to_situation', page, limit);
-    res.status(200).json(result);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'respond_to_situation', page, limit, req, res);
 });
+
 
 module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
     if (req.file && path.extname(req.file.originalname) !== '.wav') {
@@ -520,7 +551,7 @@ module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
 // ============================================================
 
 module.exports.addAnswerShortQuestion = asyncWrapper(async (req, res) => {
-    if(!req.file){
+    if (!req.file) {
         throw new ExpressError(400, "File is Required");
     }
     const newData = req.body;
@@ -580,10 +611,12 @@ module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getAllAnswerShortQuestion = asyncWrapper(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await getAllQuestions('answer_short_question', page, limit);
-    res.status(200).json(result);
+    const query = req.query.filter;
+    const { page, limit } = req.query;
+
+    getQuestionByQuery(query, 'answer_short_question', page, limit, req, res);
 });
+
 
 module.exports.answerShortQuestionResult = asyncWrapper(async (req, res) => {
     const { questionId, accent = 'us' } = req.body;
@@ -661,6 +694,18 @@ Please provide the following result in this format and Format your response as J
             max_tokens: 500
         });
         const result = JSON.parse(response.choices[0].message.content);
+
+        await practicedModel.findOneAndUpdate(
+            {
+                user: req.user._id,
+                questionType: question.type,
+                subtype: question.subtype
+            },
+            {
+                $addToSet: { practicedQuestions: question._id }
+            },
+            { upsert: true, new: true }
+        );
 
         res.status(200).json({ success: true, result });
 

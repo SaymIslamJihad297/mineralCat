@@ -188,3 +188,49 @@ module.exports.getAQuestion = asyncWrapper(async(req, res)=>{
 
   res.status(200).json({question});
 })
+
+
+module.exports.addToBookmark = asyncWrapper(async (req, res) => {
+    const userId = req.user._id;
+    const questionId = req.body.id;
+
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+        return res.status(400).json({ message: 'Invalid question ID' });
+    }
+
+    const question = await questionModel.findById(questionId);
+    if (!question) {
+        return res.status(404).json({ message: 'Question not found' });
+    }
+
+    const user = await userModels.findById(userId);
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    const alreadyBookmarked = user.bookmark.includes(questionId);
+    if (alreadyBookmarked) {
+        return res.status(409).json({ message: 'Question already bookmarked' });
+    }
+
+    user.bookmark.push(questionId);
+    await user.save();
+
+    return res.status(200).json({ message: 'Question bookmarked successfully' });
+});
+
+
+
+module.exports.getBookMark = asyncWrapper(async (req, res) => {
+    const userId = req.user._id;
+
+    const user = await userModels.findById(userId).populate('bookmark');
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.status(200).json({
+        message: 'Bookmarked questions fetched successfully',
+        bookmarks: user.bookmark,
+    });
+});

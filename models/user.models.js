@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const {Schema} = mongoose;
+const { Schema } = mongoose;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -38,34 +38,41 @@ const userSchema = new Schema({
             'admin',
         ],
         default: 'user'
-      },
+    },
     googleId: {
         type: String,
     },
     status: {
-      type: String,
-      enum: ['progress', 'blocked'],
-      default: 'progress',
+        type: String,
+        enum: ['progress', 'blocked'],
+        default: 'progress',
     },
+    bookmark: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Question'
+        }
+
+    ],
     stripeAccountId: {
-      type: String,
+        type: String,
     },
 }, {
     timestamps: true,
 })
 
-userSchema.pre('save', async function(next){
-    if(!this.isModified('password') || !this.password) return next();
+userSchema.pre('save', async function (next) {
+    if (!this.isModified('password') || !this.password) return next();
 
     this.password = await bcrypt.hash(this.password, 10);
     next();
 })
 
-userSchema.methods.verifyPassword = async function(password){
+userSchema.methods.verifyPassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 }
 
-userSchema.methods.generateAccessToken = async function() {
+userSchema.methods.generateAccessToken = async function () {
     return jwt.sign(
         {
             _id: this._id,
@@ -79,7 +86,7 @@ userSchema.methods.generateAccessToken = async function() {
         }
     )
 }
-userSchema.methods.generateRefreshToken = async function() {
+userSchema.methods.generateRefreshToken = async function () {
     return jwt.sign(
         {
             _id: this._id,

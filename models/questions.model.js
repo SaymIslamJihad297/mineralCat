@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const Counter = require('./Counter');
 
 const BlankSchema = new Schema({
   index: Number,
@@ -54,13 +55,29 @@ const QuestionSchema = new Schema({
   // For essay/text responses
   correctText: String, // optional for AI scoring
 
+  questionNumber: {
+    type: Number,
+    unique: true,
+  },
+
   // Admin/meta
   createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
-},{
-    timestamps: true,
+}, {
+  timestamps: true,
 }
-
 );
+
+QuestionSchema.pre('save', async function (next) {
+  if (this.isNew && !this.questionNumber) {
+    const counter = await Counter.findOneAndUpdate(
+      { name: 'question' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.questionNumber = counter.seq;
+  }
+  next();
+});
 
 module.exports = mongoose.model('Question', QuestionSchema);

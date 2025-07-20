@@ -66,7 +66,7 @@ module.exports.editSummarizeWrittenText = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getSummarizeWrittenText = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const {page, limit} = req.query;
     getQuestionByQuery(query, 'summarize_written_text', page, limit,req, res);
 })
@@ -227,7 +227,7 @@ module.exports.editWriteEmail = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getWriteEmail = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const {page, limit} = 10;
 
     getQuestionByQuery(query, 'write_email', page, limit,req, res);

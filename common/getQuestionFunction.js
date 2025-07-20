@@ -1,3 +1,4 @@
+const bookmarkModel = require('../models/bookmark.model');
 const practicedModel = require('../models/practiced.model');
 const questionsModel = require('../models/questions.model');
 
@@ -39,7 +40,32 @@ module.exports.getQuestionByQuery = (async (query, subtype, page = 1, limit = 10
             pages: Math.ceil(total / limit)
         });
     } else if (query == 'bookmark') {
+        const skip = (page - 1) * limit;
+        const userId = req.user._id;
 
+        const bookmarkDoc = await bookmarkModel
+            .findOne({ user: userId, subtype })
+            .populate({
+                path: 'bookmarkedQuestions',
+                options: {
+                    sort: { createdAt: -1 },
+                    skip,
+                    limit: parseInt(limit)
+                }
+            });
+
+        if (!bookmarkDoc || !bookmarkDoc.bookmarkedQuestions.length) {
+            return res.status(404).json({ message: 'No bookmarked questions found.' });
+        }
+
+        const total = bookmarkDoc.bookmarkedQuestions.length;
+
+        return res.status(200).json({
+            questions: bookmarkDoc.bookmarkedQuestions,
+            total,
+            page: Number(page),
+            pages: Math.ceil(total / limit)
+        });
     } else {
         res.status(401).json({ message: "Invalid Query" })
     }

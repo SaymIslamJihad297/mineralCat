@@ -58,7 +58,7 @@ module.exports.addFillInTheBlanks = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getAllFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'rw_fill_in_the_blanks', page, limit, req, res);
@@ -96,7 +96,7 @@ module.exports.addMcqMultiple = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getMcqMultiple = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'mcq_multiple', page, limit, req, res);
@@ -163,7 +163,7 @@ module.exports.addMcqSingle = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getMcqSingle = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'mcq_single', page, limit, req, res);
@@ -244,7 +244,7 @@ module.exports.editReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'reading_fill_in_the_blanks', page, limit, req, res);
@@ -318,7 +318,7 @@ module.exports.editReorderParagraphs = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getReorderParagraphs = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'reorder_paragraphs', page, limit, req, res);

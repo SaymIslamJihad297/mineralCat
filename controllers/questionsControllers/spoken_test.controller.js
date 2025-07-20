@@ -297,7 +297,7 @@ module.exports.editSummarizeSpokenText = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getAllSummarizeSpokenText = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'summarize_spoken_text', page, limit, req, res);
@@ -469,7 +469,7 @@ module.exports.editMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req, 
 })
 
 module.exports.getAllMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'listening_multiple_choice_multiple_answers', page, limit, req, res);
@@ -602,7 +602,7 @@ module.exports.editListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
 })
 
 module.exports.getAllListeningFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'listening_fill_in_the_blanks', page, limit, req, res);
@@ -754,7 +754,7 @@ module.exports.editMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) =
 });
 
 module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res) => {
-    const query = req.query.filter;
+    const query = req.query.query;
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'listening_multiple_choice_single_answers', page, limit, req, res);

@@ -9,6 +9,8 @@ const fs = require('node:fs');
 const cloudinary = require('../../middleware/cloudinary.config');
 const path = require('node:path');
 const questionModel = require('../../models/questions.model');
+const ExpressError = require('../../utils/ExpressError');
+const bookmarkModel = require('../../models/bookmark.model');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -176,61 +178,72 @@ module.exports.updateUser = asyncWrapper(async (req, res) => {
 
   fs.unlinkSync(req.file.path);
 
-  const userData = await userModels.findByIdAndUpdate(user._id, {...data, profile: result.secure_url}, { new: true }).select(['-password']);
+  const userData = await userModels.findByIdAndUpdate(user._id, { ...data, profile: result.secure_url }, { new: true }).select(['-password']);
   return res.status(200).json({ user: userData });
 });
 
 
-module.exports.getAQuestion = asyncWrapper(async(req, res)=>{
+module.exports.getAQuestion = asyncWrapper(async (req, res) => {
   const question = await questionModel.findById(req.params.id);
 
   console.log(question);
 
-  res.status(200).json({question});
+  res.status(200).json({ question });
 })
 
 
 module.exports.addToBookmark = asyncWrapper(async (req, res) => {
-    const userId = req.user._id;
-    const questionId = req.body.id;
+  const userId = req.user._id;
+  const { id } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(questionId)) {
-        return res.status(400).json({ message: 'Invalid question ID' });
+  if (!id) {
+    throw new ExpressError(400, "Question ID is required");
+  }
+
+  // Fetch question to get type and subtype
+  const question = await questionModel.findById(id);
+  if (!question) {
+    throw new ExpressError(404, "Question not found");
+  }
+
+  const { type: questionType, subtype } = question;
+
+  let bookmark = await bookmarkModel.findOne({ user: userId, questionType, subtype });
+
+  if (bookmark) {
+    if (bookmark.bookmarkedQuestions.includes(id)) {
+      return res.status(200).json({ message: "Already bookmarked" });
     }
 
-    const question = await questionModel.findById(questionId);
-    if (!question) {
-        return res.status(404).json({ message: 'Question not found' });
-    }
+    bookmark.bookmarkedQuestions.push(id);
+    await bookmark.save();
+  } else {
+    bookmark = await bookmarkModel.create({
+      user: userId,
+      questionType,
+      subtype,
+      bookmarkedQuestions: [id]
+    });
+  }
 
-    const user = await userModels.findById(userId);
-    if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-    }
-
-    const alreadyBookmarked = user.bookmark.includes(questionId);
-    if (alreadyBookmarked) {
-        return res.status(409).json({ message: 'Question already bookmarked' });
-    }
-
-    user.bookmark.push(questionId);
-    await user.save();
-
-    return res.status(200).json({ message: 'Question bookmarked successfully' });
+  res.status(200).json({
+    message: "Bookmarked successfully",
+    data: bookmark
+  });
 });
 
 
 
 module.exports.getBookMark = asyncWrapper(async (req, res) => {
-    const userId = req.user._id;
+  const userId = req.user._id;
 
-    const user = await userModels.findById(userId).populate('bookmark');
-    if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-    }
+  const user = await userModels.findById(userId).populate('bookmark');
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
 
-    return res.status(200).json({
-        message: 'Bookmarked questions fetched successfully',
-        bookmarks: user.bookmark,
-    });
+  return res.status(200).json({
+    message: 'Bookmarked questions fetched successfully',
+    bookmarks: user.bookmark,
+  });
 });

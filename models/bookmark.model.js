@@ -21,7 +21,6 @@ const bookmark = Schema({
     }]
 });
 
-// Optional: Add a compound unique index to avoid duplicate entries
 bookmark.index({ user: 1, questionType: 1, subtype: 1 }, { unique: true });
 
-module.exports = mongoose.model('Practice', bookmark);
+module.exports = mongoose.model('Bookmark', bookmark);

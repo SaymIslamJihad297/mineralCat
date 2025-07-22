@@ -67,11 +67,11 @@ module.exports.editSummarizeWrittenText = asyncWrapper(async (req, res) => {
 
 module.exports.getSummarizeWrittenText = asyncWrapper(async (req, res) => {
     const query = req.query.query;
-    const {page, limit} = req.query;
-    getQuestionByQuery(query, 'summarize_written_text', page, limit,req, res);
+    const { page, limit } = req.query;
+    getQuestionByQuery(query, 'summarize_written_text', page, limit, req, res);
 })
 module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
-    
+
     const { questionId, userSummary } = req.body;
 
     if (!questionId || !userSummary) {
@@ -91,30 +91,32 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
     const originalParagraph = question.prompt;
 
     const prompt = `
-    You are an expert at evaluating summaries of written texts. Below is the original paragraph and the summary written by the user.
+You are an expert at evaluating summaries of written texts. Below is the original paragraph and the summary written by the user.
 
-    Original Paragraph: 
-    ${originalParagraph}
+Original Paragraph: 
+${originalParagraph}
 
-    User's Summary: 
-    ${userSummary}
+User's Summary: 
+${userSummary}
 
-    Please evaluate the user's summary and provide a score out of 7 in the following categories:
-    - Content (0-2)
-    - Grammar (0-2)
-    - Form (0-1)
-    - Vocabulary Range (0-2)
+Please evaluate the user's summary and provide a score out of 7 in the following categories:
+- Content (0–2)
+- Grammar (0–2)
+- Form (0–1)
+- Vocabulary Range (0–2)
 
-    Provide a breakdown of the score in the following format:
-    Score: X/7
-    Enabling Skills:
-    Content: X/2
-    Grammar: X/2
-    Form: X/1
-    Vocabulary Range: X/2
+Return the result in exactly the following format with no additional explanation or commentary before or after. Do not change the labels or the order.
 
-    Please also provide any feedback or suggestions for improvement. 
-    `;
+Score: X/7  
+Enabling Skills:  
+Content: X/2  
+Grammar: X/2  
+Form: X/1  
+Vocabulary Range: X/2  
+
+Feedback: Your feedback goes here
+`;
+
 
     try {
         const gptResponse = await openai.chat.completions.create({
@@ -229,9 +231,9 @@ module.exports.editWriteEmail = asyncWrapper(async (req, res) => {
 
 module.exports.getWriteEmail = asyncWrapper(async (req, res) => {
     const query = req.query.query;
-    const {page, limit} = 10;
+    const { page, limit } = 10;
 
-    getQuestionByQuery(query, 'write_email', page, limit,req, res);
+    getQuestionByQuery(query, 'write_email', page, limit, req, res);
 })
 
 module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
@@ -252,36 +254,38 @@ module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
     const originalEmailTemplate = question.prompt;
 
     const prompt = `
-    You are an expert at evaluating the structure, grammar, spelling, and overall quality of emails. Below is the original email template and the email written by the user.
+You are an expert at evaluating the structure, grammar, spelling, and overall quality of emails. Below is the original email template and the email written by the user.
 
-    Original Email Template: 
-    ${originalEmailTemplate}
+Original Email Template: 
+${originalEmailTemplate}
 
-    User's Email: 
-    ${email}
+User's Email: 
+${email}
 
-    Please evaluate the user's email and provide a score out of 15 in the following categories:
-    - Content (0-3)
-    - Grammar (0-2)
-    - Spelling (0-2)
-    - Form (0-2)
-    - Organization (0-2)
-    - Email Convention (0-2)
-    - Vocabulary Range (0-2)
+Please evaluate the user's email and provide a score out of 15 in the following categories:
+- Content (0–3)
+- Grammar (0–2)
+- Spelling (0–2)
+- Form (0–2)
+- Organization (0–2)
+- Email Convention (0–2)
+- Vocabulary Range (0–2)
 
-    Provide a breakdown of the score in the following format:
-    Score: X/15
-    Enabling Skills:
-    Content: X/3
-    Grammar: X/2
-    Spelling: X/2
-    Form: X/2
-    Organization: X/2
-    Email Convention: X/2
-    Vocabulary Range: X/2
+Return the result in **exactly** the following format with no additional explanation before or after. Do not include headings or introductory text.
 
-    Please also provide any feedback or suggestions for improvement.
-    `;
+Score: X/15  
+Enabling Skills:  
+Content: X/3  
+Grammar: X/2  
+Spelling: X/2  
+Form: X/2  
+Organization: X/2  
+Email Convention: X/2  
+Vocabulary Range: X/2  
+
+Feedback: Your feedback goes here
+`;
+
 
     function parseGPTResponseForWriteEmail(responseText) {
         const regex = /Score:\s*(\d+(\.\d+)?)\/15\s*Enabling Skills:\s*Content:\s*(\d+)\/3\s*Grammar:\s*(\d+)\/2\s*Spelling:\s*(\d+)\/2\s*Form:\s*(\d+)\/2\s*Organization:\s*(\d+)\/2\s*Email Convention:\s*(\d+)\/2\s*Vocabulary Range:\s*(\d+)\/2\s*Feedback:\s*([\s\S]+)/;

@@ -103,6 +103,7 @@ module.exports.readingFillInTheBlanksSchemaValidator = Joi.object(
     {
         type: Joi.string().required(),
         subtype: Joi.string().required(),
+        heading: Joi.string().required(),
         prompt: Joi.string().required(),
         blanks: Joi.array()
             .items(

@@ -21,7 +21,7 @@ module.exports.addSummarizeWrittenText = asyncWrapper(async (req, res) => {
     }
     const { error, value } = addSummarizeTextSchemaValidator.validate(req.body);
 
-    const { type = 'writing', subtype = 'summarize_written_text', heading, text } = value;
+    const { type = 'writing', subtype = 'summarize_written_text', heading, prompt } = value;
 
     if (error) throw new ExpressError(400, error.details[0].message);
 
@@ -31,7 +31,7 @@ module.exports.addSummarizeWrittenText = asyncWrapper(async (req, res) => {
         type,
         subtype,
         heading,
-        text,
+        prompt,
     });
 
     res.status(200).json({ data: newQuestion });
@@ -71,6 +71,7 @@ module.exports.getSummarizeWrittenText = asyncWrapper(async (req, res) => {
     getQuestionByQuery(query, 'summarize_written_text', page, limit,req, res);
 })
 module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
+    
     const { questionId, userSummary } = req.body;
 
     if (!questionId || !userSummary) {
@@ -87,7 +88,7 @@ module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
     }
 
 
-    const originalParagraph = question.text;
+    const originalParagraph = question.prompt;
 
     const prompt = `
     You are an expert at evaluating summaries of written texts. Below is the original paragraph and the summary written by the user.

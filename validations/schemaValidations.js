@@ -120,6 +120,7 @@ module.exports.editReadingFillInTheBlanksSchemaValidator = Joi.object(
     {
         type: Joi.string().optional(),
         subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
         prompt: Joi.string().optional(),
         blanks: Joi.array()
             .items(
@@ -138,6 +139,7 @@ module.exports.reorderParagraphsSchemaValidator = Joi.object(
     {
         type: Joi.string().required(),
         subtype: Joi.string().required(),
+        heading: Joi.string().required(),
         prompt: Joi.string().required(),
         options: Joi.array().required(),
     }
@@ -146,6 +148,7 @@ module.exports.EditReorderParagraphsSchemaValidator = Joi.object(
     {
         type: Joi.string().optional(),
         subtype: Joi.string().optional(),
+        heading: Joi.string().optional(),
         prompt: Joi.string().optional(),
         options: Joi.array().optional(),
     }

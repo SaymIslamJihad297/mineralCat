@@ -11,6 +11,7 @@ const path = require('node:path');
 const questionModel = require('../../models/questions.model');
 const ExpressError = require('../../utils/ExpressError');
 const bookmarkModel = require('../../models/bookmark.model');
+const notificationModel = require('../../models/notification.model');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -245,5 +246,130 @@ module.exports.getBookMark = asyncWrapper(async (req, res) => {
   return res.status(200).json({
     message: 'Bookmarked questions fetched successfully',
     bookmarks: user.bookmark,
+  });
+});
+
+
+module.exports.addNotification = asyncWrapper(async (req, res) => {
+  const { title, description, targetSubscription } = req.body;
+
+  if (!['bronze', 'silver', 'gold', 'all'].includes(targetSubscription)) {
+    return res.status(400).json({ message: "Invalid subscription target." });
+  }
+
+  const notification = await notificationModel.create({
+    title,
+    description,
+    targetSubscription,
+  });
+
+  return res.status(201).json({
+    success: true,
+    data: notification,
+    message: "Notification created successfully.",
+  });
+});
+
+
+
+module.exports.getNotifications = asyncWrapper(async (req, res) => {
+  const userId = req.user._id;
+
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const user = await userModels
+    .findById(userId)
+    .populate('userSubscription', 'planType')
+    .select('notifications');
+
+  const seenIds = user.notifications.map(id => id.toString());
+  const tier = user.userSubscription?.planType?.toLowerCase();
+
+  if (!tier) {
+    return res.status(400).json({ success: false, message: "User subscription not found." });
+  }
+
+  const notifications = await notificationModel.aggregate([
+    {
+      $match: {
+        $or: [
+          { targetSubscription: tier },
+          { targetSubscription: 'all' }
+        ]
+      }
+    },
+    {
+      $sort: { time: -1 }
+    },
+    {
+      $skip: skip
+    },
+    {
+      $limit: limit
+    },
+    {
+      $addFields: {
+        seen: {
+          $in: ['$_id', seenIds.map(id => new mongoose.Types.ObjectId(id))]
+        }
+      }
+    }
+  ]);
+
+  const fetchedIds = notifications.map(n => n._id);
+  const newSeenIds = fetchedIds.filter(id => !seenIds.includes(id.toString()));
+
+  if (newSeenIds.length > 0) {
+    await userModels.findByIdAndUpdate(userId, {
+      $addToSet: {
+        notifications: { $each: newSeenIds }
+      }
+    });
+  }
+
+  const unseenCount = notifications.filter(n => !n.seen).length;
+
+  res.status(200).json({
+    success: true,
+    unseenCount,
+    page,
+    limit,
+    data: notifications
+  });
+});
+
+
+module.exports.getUnseenNotificationCount = asyncWrapper(async (req, res) => {
+  const userId = req.user._id;
+
+  const user = await userModels
+    .findById(userId)
+    .populate('userSubscription', 'planType')
+    .select('notifications');
+
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
+  }
+
+  const seenIds = user.notifications.map(id => new mongoose.Types.ObjectId(id));
+  const tier = user.userSubscription?.planType?.toLowerCase();
+
+  if (!tier) {
+    return res.status(400).json({ success: false, message: "User subscription not found." });
+  }
+
+  const unseenCount = await notificationModel.countDocuments({
+    _id: { $nin: seenIds },
+    $or: [
+      { targetSubscription: tier },
+      { targetSubscription: 'all' }
+    ]
+  });
+
+  res.status(200).json({
+    success: true,
+    unseenCount
   });
 });

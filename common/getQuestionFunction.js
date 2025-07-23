@@ -1,3 +1,4 @@
+const { default: mongoose } = require('mongoose');
 const bookmarkModel = require('../models/bookmark.model');
 const practicedModel = require('../models/practiced.model');
 const questionsModel = require('../models/questions.model');
@@ -39,34 +40,50 @@ module.exports.getQuestionByQuery = (async (query, subtype, page = 1, limit = 10
             page: Number(page),
             pages: Math.ceil(total / limit)
         });
-    } else if (query == 'bookmark') {
+    } else if (query === 'bookmark') {
         const skip = (page - 1) * limit;
         const userId = req.user._id;
 
-        const bookmarkDoc = await bookmarkModel
-            .findOne({ user: userId, subtype })
-            .populate({
-                path: 'bookmarkedQuestions',
-                options: {
-                    sort: { createdAt: -1 },
-                    skip,
-                    limit: parseInt(limit)
+        const [result] = await bookmarkModel.aggregate([
+            {
+                $match: {
+                    user: new mongoose.Types.ObjectId(userId),
+                    subtype: subtype
                 }
-            });
+            },
+            {
+                $lookup: {
+                    from: 'questions',
+                    localField: 'bookmarkedQuestions',
+                    foreignField: '_id',
+                    as: 'questions'
+                }
+            },
+            { $unwind: '$questions' },
+            { $sort: { 'questions.createdAt': -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+                $group: {
+                    _id: '$_id',
+                    questions: { $push: '$questions' },
+                    total: { $sum: 1 }
+                }
+            }
+        ]);
 
-        if (!bookmarkDoc || !bookmarkDoc.bookmarkedQuestions.length) {
+        if (!result || !result.questions.length) {
             return res.status(404).json({ message: 'No bookmarked questions found.' });
         }
 
-        const total = bookmarkDoc.bookmarkedQuestions.length;
-
         return res.status(200).json({
-            questions: bookmarkDoc.bookmarkedQuestions,
-            total,
+            questions: result.questions,
+            total: result.total,
             page: Number(page),
-            pages: Math.ceil(total / limit)
+            pages: Math.ceil(result.total / limit)
         });
-    } else {
+    }
+    else {
         res.status(401).json({ message: "Invalid Query" })
     }
 })

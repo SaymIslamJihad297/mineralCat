@@ -22,5 +22,7 @@ const bookmark = Schema({
 });
 
 bookmark.index({ user: 1, questionType: 1, subtype: 1 }, { unique: true });
+bookmark.index({ bookmarkedQuestions: 1 });
+
 
 module.exports = mongoose.model('Bookmark', bookmark);

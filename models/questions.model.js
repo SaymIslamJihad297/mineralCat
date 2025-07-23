@@ -80,4 +80,10 @@ QuestionSchema.pre('save', async function (next) {
   next();
 });
 
+
+
+QuestionSchema.index({ subtype: 1 });
+QuestionSchema.index({ createdAt: -1 });
+QuestionSchema.index({ subtype: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Question', QuestionSchema);

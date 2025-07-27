@@ -75,7 +75,6 @@ const limite = rateLimiter({
     message: { message: "Too many request..." }
 })
 
-
 cron.schedule('0 0 0 * * *', async () => {
   try {
     const datas = await StripePaymentGateway.find({});
@@ -99,12 +98,25 @@ cron.schedule('0 0 0 * * *', async () => {
 
 app.use(limite);
 
-// Apply raw body parsing specifically for the webhook route
-app.use('/api/stripe/webhook', bodyParser.raw({ type: 'application/json' }));
+// Apply raw body parsing specifically for the webhook route BEFORE other body parsers
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
 // Apply JSON and URL-encoded body parsing for all other routes
-app.use(express.json());
-app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
+
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next();
+  } else {
+    express.urlencoded({ extended: true, limit: '50kb' })(req, res, next);
+  }
+});
 
 app.use(cookieParser());
 app.use(passport.initialize());
@@ -133,6 +145,7 @@ app.use('/about-us', aboutUs);
 async function main() {
     mongoose.connect(process.env.MONGO_DB_URL);
 }
+
 app.get('/success', (req, res) => {
     res.send("Payment Successfull");
 })

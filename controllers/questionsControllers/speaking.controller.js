@@ -342,6 +342,7 @@ module.exports.editReadAloud = asyncWrapper(async (req, res) => {
 
 module.exports.getAllReadAloud = asyncWrapper(async (req, res) => {
     const query = req.query.query;
+    if(!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'read_aloud', page, limit, req, res);
@@ -414,6 +415,7 @@ module.exports.editRepeatSentence = asyncWrapper(async (req, res) => {
 
 module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
     const query = req.query.query;
+    if(!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'repeat_sentence', page, limit, req, res);
@@ -532,6 +534,7 @@ module.exports.editRespondToASituation = asyncWrapper(async (req, res) => {
 
 module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
     const query = req.query.query;
+    if(!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'respond_to_situation', page, limit, req, res);
@@ -612,6 +615,7 @@ module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
 
 module.exports.getAllAnswerShortQuestion = asyncWrapper(async (req, res) => {
     const query = req.query.query;
+    if(!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'answer_short_question', page, limit, req, res);

@@ -58,7 +58,7 @@ module.exports.addFillInTheBlanks = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getAllFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const query = req.query.query;
+    let query = req.query.query;
     if(!query) query = 'all';
     const { page, limit } = req.query;
 
@@ -97,7 +97,7 @@ module.exports.addMcqMultiple = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getMcqMultiple = asyncWrapper(async (req, res) => {
-    const query = req.query.query;
+    let query = req.query.query;
     if(!query) query = 'all';
     const { page, limit } = req.query;
 
@@ -165,7 +165,7 @@ module.exports.addMcqSingle = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getMcqSingle = asyncWrapper(async (req, res) => {
-    const query = req.query.query;
+    let query = req.query.query;
     if(!query) query = 'all';
     const { page, limit } = req.query;
 
@@ -247,7 +247,7 @@ module.exports.editReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
-    const query = req.query.query;
+    let query = req.query.query;
     if(!query) query = 'all';
     const { page, limit } = req.query;
 
@@ -322,7 +322,7 @@ module.exports.editReorderParagraphs = asyncWrapper(async (req, res) => {
 });
 
 module.exports.getReorderParagraphs = asyncWrapper(async (req, res) => {
-    const query = req.query.query;
+    let query = req.query.query;
     if(!query) query = 'all';
     const { page, limit } = req.query;
 

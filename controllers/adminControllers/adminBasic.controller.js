@@ -179,6 +179,9 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
     };
     let userList = [];
 
+    
+    
+
     for (const sub of allSubscriptions) {
         const plan = sub.planType?.toLowerCase();
         totalUsers++;
@@ -201,7 +204,7 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
             });
         }
     }
-
+console.log(userList.length);
     res.status(200).json({
         totalUsers,
         usersByPackage: {

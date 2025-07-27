@@ -161,38 +161,47 @@ module.exports.addNotification = asyncWrapper(async (req, res) => {
 });
 
 
-
 module.exports.adminEarnings = asyncWrapper(async (req, res) => {
-
     const { planType } = req.query;
 
     const allSubscriptions = await supscriptionModel.find({
         isActive: true,
-        'user': { $ne: null }
+        user: { $ne: null }
     }).populate('user');
 
     let totalUsers = 0;
+    let totalEarnings = 0;
+
     let userCountByPlan = {
         bronze: 0,
         silver: 0,
         gold: 0
     };
+
+    let earningsByPlan = {
+        bronze: 0,
+        silver: 0,
+        gold: 0
+    };
+
     let userList = [];
 
-    
-    
+    const planPrices = {
+        bronze: 29.99,
+        silver: 49.99,
+        gold: 69.99
+    };
 
     for (const sub of allSubscriptions) {
         const plan = sub.planType?.toLowerCase();
-        totalUsers++;
-        
+        if (!plan || !planPrices[plan]) continue;
 
-        if (plan === 'bronze') userCountByPlan.bronze++;
-        else if (plan === 'silver') userCountByPlan.silver++;
-        else if (plan === 'gold') userCountByPlan.gold++;
+        totalUsers++;
+        userCountByPlan[plan]++;
+        earningsByPlan[plan] += planPrices[plan];
+        totalEarnings += planPrices[plan];
 
         if (planType && planType.toLowerCase() === plan) {
-            
             userList.push({
                 userId: sub.user?._id.toString().slice(-6),
                 name: sub.user?.name || 'N/A',
@@ -204,14 +213,12 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
             });
         }
     }
-console.log(userList.length);
+
     res.status(200).json({
         totalUsers,
-        usersByPackage: {
-            bronze: userCountByPlan.bronze,
-            silver: userCountByPlan.silver,
-            gold: userCountByPlan.gold
-        },
+        usersByPackage: userCountByPlan,
+        earningsByPackage: earningsByPlan,
+        totalEarnings,
         ...(planType && { users: userList })
     });
 });

@@ -14,7 +14,7 @@ if(cluster.isPrimary){
         console.log(`Worker ${worker.process.pid} died`);
     })
 }else{
-    app.listen(3750, ()=>{
+    app.listen(process.env.PORT, ()=>{
         console.log(`App started listening port on 3750 with worker ${process.pid}`);
     })
 }

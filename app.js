@@ -19,7 +19,7 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:3002',
-    'https://pipefish-famous-socially.ngrok-free.app'
+    'https://jihad-genuine-vhondo.surge.sh'
 ];
 
 app.use(cors({

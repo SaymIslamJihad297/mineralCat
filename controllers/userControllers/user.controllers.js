@@ -250,26 +250,6 @@ module.exports.getBookMark = asyncWrapper(async (req, res) => {
 });
 
 
-module.exports.addNotification = asyncWrapper(async (req, res) => {
-  const { title, description, targetSubscription } = req.body;
-
-  if (!['bronze', 'silver', 'gold', 'all'].includes(targetSubscription)) {
-    return res.status(400).json({ message: "Invalid subscription target." });
-  }
-
-  const notification = await notificationModel.create({
-    title,
-    description,
-    targetSubscription,
-  });
-
-  return res.status(201).json({
-    success: true,
-    data: notification,
-    message: "Notification created successfully.",
-  });
-});
-
 
 
 module.exports.getNotifications = asyncWrapper(async (req, res) => {
@@ -373,3 +353,7 @@ module.exports.getUnseenNotificationCount = asyncWrapper(async (req, res) => {
     unseenCount
   });
 });
+
+
+
+

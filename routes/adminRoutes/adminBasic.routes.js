@@ -1,6 +1,6 @@
 const router = require('express').Router();
-const { getRecentUsers, getAllUsers, loginUser, getCounts, deleteUsers, deleteQuestion} = require('../../controllers/adminControllers/adminBasic.controller');
-const { getNotifications, addNotification } = require('../../controllers/userControllers/user.controllers');
+const { getRecentUsers, getAllUsers, loginUser, getCounts, deleteUsers, deleteQuestion, addNotification, adminEarnings} = require('../../controllers/adminControllers/adminBasic.controller');
+const { getNotifications } = require('../../controllers/userControllers/user.controllers');
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 
 
@@ -21,4 +21,6 @@ router.route('/notification')
     .post(isUserLoggedIn, isAdminUser,addNotification)
     .get(isUserLoggedIn, getNotifications);
 
+
+router.get('/earnings', isUserLoggedIn, isAdminUser, adminEarnings);
 module.exports = router;

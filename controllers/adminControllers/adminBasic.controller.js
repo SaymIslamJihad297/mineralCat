@@ -4,6 +4,7 @@ const supscriptionModel = require("../../models/supscription.model");
 const userModels = require("../../models/user.models");
 const { accessTokenAndRefreshTokenGenerator } = require("../../tokenGenerator");
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
+const ExpressError = require("../../utils/ExpressError");
 const { LoginFormValidator } = require("../../validations/schemaValidations");
 
 
@@ -137,3 +138,77 @@ module.exports.deleteQuestion = asyncWrapper(async(req, res)=>{
 
     res.status(200).json({message: "Question Deleted"});
 })
+
+
+module.exports.addNotification = asyncWrapper(async (req, res) => {
+  const { title, description, targetSubscription } = req.body;
+
+  if (!['bronze', 'silver', 'gold', 'all'].includes(targetSubscription)) {
+    return res.status(400).json({ message: "Invalid subscription target." });
+  }
+
+  const notification = await notificationModel.create({
+    title,
+    description,
+    targetSubscription,
+  });
+
+  return res.status(201).json({
+    success: true,
+    data: notification,
+    message: "Notification created successfully.",
+  });
+});
+
+
+
+module.exports.adminEarnings = asyncWrapper(async (req, res) => {
+
+    const { planType } = req.query;
+
+    const allSubscriptions = await supscriptionModel.find({
+        isActive: true,
+        'user': { $ne: null }
+    }).populate('user');
+
+    let totalUsers = 0;
+    let userCountByPlan = {
+        bronze: 0,
+        silver: 0,
+        gold: 0
+    };
+    let userList = [];
+
+    for (const sub of allSubscriptions) {
+        const plan = sub.planType?.toLowerCase();
+        totalUsers++;
+        
+
+        if (plan === 'bronze') userCountByPlan.bronze++;
+        else if (plan === 'silver') userCountByPlan.silver++;
+        else if (plan === 'gold') userCountByPlan.gold++;
+
+        if (planType && planType.toLowerCase() === plan) {
+            
+            userList.push({
+                userId: sub.user?._id.toString().slice(-6),
+                name: sub.user?.name || 'N/A',
+                paymentDate: sub.startedAt?.toLocaleDateString('en-GB') || 'N/A',
+                expireDate: sub.expiresAt?.toLocaleDateString('en-GB') || 'N/A',
+                estToken: sub.credits ?? 0,
+                estMockTest: sub.mockTestLimit ?? 0,
+                package: sub.planType
+            });
+        }
+    }
+
+    res.status(200).json({
+        totalUsers,
+        usersByPackage: {
+            bronze: userCountByPlan.bronze,
+            silver: userCountByPlan.silver,
+            gold: userCountByPlan.gold
+        },
+        ...(planType && { users: userList })
+    });
+});

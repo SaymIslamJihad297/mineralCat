@@ -24,15 +24,11 @@ const sectionalMockTestSchema = new Schema({
             required: true
         }
     },
-    questions: [
-        {
-            question: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Question',
-                required: true
-            },
-        }
-    ],
+    questions: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Question',
+        required: true
+    }],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

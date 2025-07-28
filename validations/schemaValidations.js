@@ -346,11 +346,7 @@ module.exports.sectionalMockTestSchemaValidator = Joi.object({
         hours: Joi.number().required(),
         minutes: Joi.number().required()
     }).required(),
-    questions: Joi.array().items(
-        Joi.object({
-            question: Joi.string().required(),
-        })
-    ).required()
+    questions: Joi.array().required()
 })
 
 

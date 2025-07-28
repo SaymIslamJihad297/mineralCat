@@ -160,23 +160,32 @@ Feedback: Your feedback goes here
 });
 
 function parseGPTResponse(responseText) {
-    const regex = /Score:\s*(\d)\/7\nEnabling Skills:\nContent:\s*(\d)\/2\nGrammar:\s*(\d)\/2\nForm:\s*(\d)\/1\nVocabulary Range:\s*(\d)\/2/g;
-    const matches = regex.exec(responseText);
+    try {
+        const scoreMatch = responseText.match(/Score:\s*([\d.]+)\s*\/\s*7/i);
+        const contentMatch = responseText.match(/Content:\s*([\d.]+)\s*\/\s*2/i);
+        const grammarMatch = responseText.match(/Grammar:\s*([\d.]+)\s*\/\s*2/i);
+        const formMatch = responseText.match(/Form:\s*([\d.]+)\s*\/\s*1/i);
+        const vocabMatch = responseText.match(/Vocabulary Range:\s*([\d.]+)\s*\/\s*2/i);
+        const feedbackMatch = responseText.match(/Feedback:\s*(.*)/is);
 
-    if (!matches) {
-        throw new Error('Unable to parse GPT response');
+        if (!scoreMatch || !contentMatch || !grammarMatch || !formMatch || !vocabMatch) {
+            throw new Error("Incomplete matches in GPT response");
+        }
+
+        return {
+            score: parseFloat(scoreMatch[1]),
+            content: parseFloat(contentMatch[1]),
+            grammar: parseFloat(grammarMatch[1]),
+            form: parseFloat(formMatch[1]),
+            vocabularyRange: parseFloat(vocabMatch[1]),
+            feedback: feedbackMatch ? feedbackMatch[1].trim() : "No feedback provided."
+        };
+    } catch (err) {
+        console.error("GPT Response:\n", responseText);
+        throw new Error("Unable to parse GPT response");
     }
-    const feedback = responseText.split('Feedback:')[1]?.trim() || "No feedback provided.";
-
-    return {
-        score: parseInt(matches[1]),
-        content: parseInt(matches[2]),
-        grammar: parseInt(matches[3]),
-        form: parseInt(matches[4]),
-        vocabularyRange: parseInt(matches[5]),
-        feedback: feedback,
-    };
 }
+
 
 // ------------------- write email --------------------------------------
 

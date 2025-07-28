@@ -100,11 +100,18 @@ module.exports.deleteMockTest = async (req, res) => {
 
 
 module.exports.getAllMockTests = async (req, res) => {
-    try {
-        const mockTests = await FullmockTestSchema.find().populate("questions.question");
-        res.status(200).json(mockTests);
-    } catch (error) {
-        console.error("Error fetching mock tests:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
+  try {
+    const mockTests = await FullmockTestSchema.find({}, { name: 1, duration: 1 })
+      .sort({ createdAt: -1 });
+
+    const totalCount = await FullmockTestSchema.countDocuments();
+
+    res.status(200).json({
+      totalCount,
+      mockTests
+    });
+  } catch (error) {
+    console.error("Error fetching mock tests:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

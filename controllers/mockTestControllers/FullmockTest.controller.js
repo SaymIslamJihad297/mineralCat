@@ -36,7 +36,9 @@ module.exports.addMockTest = async (req, res) => {
 module.exports.getSingleMockTest = async (req, res) => {
     const { id } = req.params;
     try {
-        const mockTest = await FullmockTestSchema.findById(id).populate("questions.question");
+        const mockTest = await FullmockTestSchema.findById(id).populate("questions");
+        console.log(mockTest);
+        
         if (!mockTest) {
             return res.status(404).json({ message: "Mock test not found" });
         }

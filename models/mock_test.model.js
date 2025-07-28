@@ -17,11 +17,9 @@ const FullmockTestSchema = new Schema({
     }
   },
   questions: [{
-    question: {
       type: Schema.Types.ObjectId,
       ref: 'Question',
       required: true
-    }
   }],
   createdBy: {
     type: Schema.Types.ObjectId,

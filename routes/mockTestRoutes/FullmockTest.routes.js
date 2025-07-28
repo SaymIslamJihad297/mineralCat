@@ -10,6 +10,6 @@ router.put('/update/:id', isUserLoggedIn, isAdminUser, updateMockTest);
 
 router.delete('/delete/:id', isUserLoggedIn, isAdminUser, deleteMockTest);
 
-router.get('/getAll', isUserLoggedIn, isAdminUser,getAllMockTests);
+router.get('/getAll', isUserLoggedIn ,getAllMockTests);
 
 module.exports = router;

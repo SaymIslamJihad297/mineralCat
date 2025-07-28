@@ -4,6 +4,8 @@ const { mockTestSchemaValidator } = require("../../validations/schemaValidations
 
 module.exports.addMockTest = async (req, res) => {
 
+    console.log(req.body);
+    
 
     const {error, value} = mockTestSchemaValidator.validate(req.body);
     const {name, duration: {hours, minutes}, questions} = value;

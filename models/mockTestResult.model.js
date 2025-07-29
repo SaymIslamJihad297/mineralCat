@@ -18,21 +18,20 @@ const TypeScoreSchema = new Schema({
         type: String,
         required: true,
         enum: [
-          'read_aloud',
-          'repeat_sentence',
-          'describe_image',
-          'respond_to_situation',
-          'answer_short_question',
-          'summarize_spoken_text',
-          'write_email',
-          'rw_fill_in_the_blanks',
-          'mcq_single',
-          'mcq_multiple',
-          'reorder_paragraphs',
-          'reading_fill_in_the_blanks',
-          'listening_fill_in_the_blanks',
-          'listening_multiple_choice_multiple_answers',
-          'listening_multiple_choice_single_answers'
+      // Speaking
+      'read_aloud', 'repeat_sentence', 'describe_image',
+      'respond_to_situation', 'answer_short_question',
+
+      // Writing
+      'summarize_written_text', 'write_email',
+
+      // Reading
+      'rw_fill_in_the_blanks', 'mcq_multiple', 'reorder_paragraphs',
+      'reading_fill_in_the_blanks', 'mcq_single',
+
+      // Listening
+      'summarize_spoken_text', 'listening_fill_in_the_blanks',
+      'listening_multiple_choice_multiple_answers', 'listening_multiple_choice_single_answers'
         ]
       },
       score: {

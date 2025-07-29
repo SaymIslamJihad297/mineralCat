@@ -6,6 +6,7 @@ const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 const ExpressError = require("../../utils/ExpressError");
+const mockTestResultModel = require("../../models/mockTestResult.model");
 
 const BACKENDURL = process.env.BACKENDURL;
 
@@ -33,7 +34,7 @@ const subtypeApiUrls = {
 
 module.exports.addMockTest = async (req, res) => {
 
-    const {error, value} = mockTestSchemaValidator.validate(req.body);
+    const { error, value } = mockTestSchemaValidator.validate(req.body);
     if (error) {
         throw new ExpressError(400, error.details[0].message);
     }
@@ -220,23 +221,30 @@ module.exports.mockTestResult = async (req, res, next) => {
         const { questionId, mockTestId } = req.body;
         const userId = req.user._id;
 
-        if (!questionId || !mockTestId) throw new ExpressError(400, "questionId and mockTestId are required");
+        if (!questionId || !mockTestId)
+            throw new ExpressError(400, 'questionId and mockTestId are required');
 
         const question = await questionsModel.findById(questionId).lean();
-        if (!question) throw new ExpressError(404, "Invalid questionId or question not found");
+        if (!question) throw new ExpressError(404, 'Invalid questionId or question not found');
 
         const mockTest = await FullmockTestSchema.findById(mockTestId).lean();
-        if (!mockTest) throw new ExpressError(404, "Invalid mockTestId or mock test not found");
+        if (!mockTest) throw new ExpressError(404, 'Invalid mockTestId or mock test not found');
 
         const isQuestionInMockTest = mockTest.questions.some(qId => qId.toString() === questionId);
-        if (!isQuestionInMockTest) throw new ExpressError(400, "This question does not belong to the specified mock test");
+        if (!isQuestionInMockTest)
+            throw new ExpressError(400, 'This question does not belong to the specified mock test');
 
         const apiUrl = subtypeApiUrls[question.subtype];
-        if (!apiUrl) throw new ExpressError(400, "Unsupported question subtype");
+        if (!apiUrl) throw new ExpressError(400, 'Unsupported question subtype');
 
+        // Parse array fields sent as JSON strings
         const newData = { ...req.body };
         for (let key in newData) {
-            if (typeof newData[key] === "string" && newData[key].startsWith("[") && newData[key].endsWith("]")) {
+            if (
+                typeof newData[key] === 'string' &&
+                newData[key].startsWith('[') &&
+                newData[key].endsWith(']')
+            ) {
                 try {
                     newData[key] = JSON.parse(newData[key]);
                 } catch (e) {
@@ -251,7 +259,7 @@ module.exports.mockTestResult = async (req, res, next) => {
             for (const key in newData) {
                 form.append(key, typeof newData[key] === 'object' ? JSON.stringify(newData[key]) : newData[key]);
             }
-            form.append("voice", fs.createReadStream(req.file.path));
+            form.append('voice', fs.createReadStream(req.file.path));
 
             response = await axios.post(apiUrl, form, {
                 headers: {
@@ -260,8 +268,8 @@ module.exports.mockTestResult = async (req, res, next) => {
                 },
             });
 
-            fs.unlink(req.file.path, (err) => {
-                if (err) console.warn("Failed to delete file:", err);
+            fs.unlink(req.file.path, err => {
+                if (err) console.warn('Failed to delete file:', err);
             });
         } else {
             response = await axios.post(apiUrl, newData, {
@@ -286,8 +294,21 @@ module.exports.mockTestResult = async (req, res, next) => {
         } else if (subtype === 'answer_short_question') {
             score = scoreData.totalScore || 0;
         } else if (subtype === 'summarize_written_text') {
-            score = scoreData.totalScore || 0;
-        } else if (subtype === 'write_email') {
+
+            console.log(scoreData);
+            console.log(scoreData.score);
+            // console.log(typeof scoreData.data.score);
+            
+            
+            if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
+                score = scoreData.score;
+                console.log("Extracted score:", score); // DEBUG
+            } else {
+                console.warn("No score found in summarize_written_text response");
+            }
+        }
+
+        else if (subtype === 'write_email') {
             score = scoreData.totalScore || 0;
         } else if (subtype === 'rw_fill_in_the_blanks') {
             score = scoreData.totalScore || 0;
@@ -312,23 +333,45 @@ module.exports.mockTestResult = async (req, res, next) => {
         }
 
         // Save to DB (example)
-        const resultRecord = await MockTestResultModel.findOne({ user: userId, mockTest: mockTestId });
-        const resultObj = {
+        let mockTestResult = await mockTestResultModel.findOne({ user: userId, mockTest: mockTestId });
+
+        const attempt = {
             questionId,
-            subtype,
+            questionSubtype: question.subtype,
             score,
-            data: scoreData,
+            submittedAt: new Date(),
         };
 
-        if (!resultRecord) {
-            await MockTestResultModel.create({
+        if (!mockTestResult) {
+            // Create new doc with first result entry
+            mockTestResult = await mockTestResultModel.create({
                 user: userId,
                 mockTest: mockTestId,
-                results: [resultObj],
+                results: [
+                    {
+                        type: question.type,
+                        averageScore: score,
+                        attempts: [attempt],
+                    },
+                ],
             });
         } else {
-            resultRecord.results.push(resultObj);
-            await resultRecord.save();
+            // Check if a result entry for this question type exists
+            const existingResult = mockTestResult.results.find(r => r.type === question.type);
+            if (existingResult) {
+                existingResult.attempts.push(attempt);
+                // Recalculate averageScore
+                const total = existingResult.attempts.reduce((acc, a) => acc + a.score, 0);
+                existingResult.averageScore = total / existingResult.attempts.length;
+            } else {
+                // Add new result entry for this type
+                mockTestResult.results.push({
+                    type: question.type,
+                    averageScore: score,
+                    attempts: [attempt],
+                });
+            }
+            await mockTestResult.save();
         }
 
         return res.status(200).json({
@@ -340,4 +383,3 @@ module.exports.mockTestResult = async (req, res, next) => {
         next(error);
     }
 };
-

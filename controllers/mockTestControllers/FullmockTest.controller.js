@@ -297,8 +297,13 @@ module.exports.mockTestResult = async (req, res, next) => {
                 console.warn("No score found in summarize_written_text response");
             }
         } else if (subtype === 'respond_to_situation') {
-            score = scoreData.totalScore || 0;
-        } else if (subtype === 'answer_short_question') {
+            const speaking = scoreData.data.speakingScore || 0;
+            const fluency = scoreData.data.fluency || 0;
+            const pronunciation = scoreData.data.pronunciation || 0;
+
+            score = Math.round((speaking + fluency + pronunciation) / 3);
+        }
+        else if (subtype === 'answer_short_question') {
             const result = scoreData?.result;
 
             if (result) {

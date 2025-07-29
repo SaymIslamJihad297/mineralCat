@@ -652,6 +652,7 @@ module.exports.answerShortQuestionResult = asyncWrapper(async (req, res) => {
             accent
         );
 
+        
         const userText = extractTranscript(finalResponse);
 
         await safeDeleteFile(userFilePath);
@@ -695,6 +696,7 @@ Please provide the following result in this format and Format your response as J
 }
 
 `;
+
         const response = await openai.chat.completions.create({
             model: "gpt-4",
             messages: [
@@ -705,7 +707,6 @@ Please provide the following result in this format and Format your response as J
             max_tokens: 500
         });
         const result = JSON.parse(response.choices[0].message.content);
-
         await practicedModel.findOneAndUpdate(
             {
                 user: req.user._id,

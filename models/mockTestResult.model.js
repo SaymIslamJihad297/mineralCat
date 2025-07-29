@@ -38,7 +38,7 @@ const TypeScoreSchema = new Schema({
         type: Number,
         required: true,
         min: 0,
-        max: 90
+        max: 100
       },
       submittedAt: {
         type: Date,

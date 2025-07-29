@@ -11,7 +11,7 @@ const mockTestResultModel = require("../../models/mockTestResult.model");
 const BACKENDURL = process.env.BACKENDURL;
 
 const subtypeApiUrls = {
-    read_aloud: `${BACKENDURL}test/speaking/read_aloud/result`,
+    read_aloud: `${BACKENDURL}/test/speaking/read_aloud/result`,
     repeat_sentence: `${BACKENDURL}/test/speaking/repeat_sentence/result`,
     describe_image: `${BACKENDURL}/result/describe_image`,
     respond_to_situation: `${BACKENDURL}/test/speaking/respond-to-a-situation/result`,
@@ -237,7 +237,6 @@ module.exports.mockTestResult = async (req, res, next) => {
         const apiUrl = subtypeApiUrls[question.subtype];
         if (!apiUrl) throw new ExpressError(400, 'Unsupported question subtype');
 
-        // Parse array fields sent as JSON strings
         const newData = { ...req.body };
         for (let key in newData) {
             if (
@@ -282,19 +281,35 @@ module.exports.mockTestResult = async (req, res, next) => {
         const scoreData = response.data;
         const subtype = question.subtype;
         console.log(subtype);
-        
+
         let score = 0;
 
         if (subtype === 'read_aloud') {
-            score = scoreData.totalScore || 0;
-        } else if (subtype === 'repeat_sentence') {
-            score = scoreData.totalScore || 0;
-        } else if (subtype === 'describe_image') {
-            score = scoreData.totalScore || 0;
+            const speaking = scoreData.data.speakingScore || 0;
+            const reading = scoreData.data.readingScore || 0;
+            score = Math.round(((speaking + (reading * 100)) / 2));
+        }
+        else if (subtype === 'repeat_sentence') {
+            if (scoreData && scoreData.pronunciation && typeof scoreData.pronunciation === 'number') {
+                score = scoreData.pronunciation;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in summarize_written_text response");
+            }
         } else if (subtype === 'respond_to_situation') {
             score = scoreData.totalScore || 0;
         } else if (subtype === 'answer_short_question') {
-            score = scoreData.totalScore || 0;
+            const result = scoreData?.result;
+
+            if (result) {
+                const speaking = result.Speaking ?? 0;
+                const listening = result.Listening ?? 0;
+
+                score = ((speaking + listening) / 2) * 100;
+                score = Math.round(score);
+            } else {
+                score = 0;
+            }
         } else if (subtype === 'summarize_written_text') {
 
             if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
@@ -306,33 +321,71 @@ module.exports.mockTestResult = async (req, res, next) => {
         }
 
         else if (subtype === 'write_email') {
-            score = scoreData.totalScore || 0;
-        } else if (subtype === 'rw_fill_in_the_blanks') {
-            score = scoreData.totalScore || 0;
-        } else if (subtype === 'mcq_multiple') {
-
-            console.log(scoreData);
-            
             if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
                 score = scoreData.score;
                 console.log("Extracted score:", score);
             } else {
-                console.warn("No score found in summarize_written_text response");
+                console.warn("No score found in write_email response");
+            }
+        } else if (subtype === 'mcq_multiple') {
+
+            if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
+                score = scoreData.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in mcq_multiple response");
             }
         } else if (subtype === 'reorder_paragraphs') {
-            score = scoreData.totalScore || 0;
+
+            if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
+                score = scoreData.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in reorder_paragraphs response");
+            }
         } else if (subtype === 'reading_fill_in_the_blanks') {
-            score = scoreData.totalScore || 0;
+            if (scoreData && scoreData.result.score && typeof scoreData.result.score === 'number') {
+                score = scoreData.result.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in reading_fill_in_the_blanks response");
+            }
         } else if (subtype === 'mcq_single') {
-            score = scoreData.totalScore || 0;
+
+            if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
+                score = scoreData.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in mcq_single response");
+            }
         } else if (subtype === 'summarize_spoken_text') {
-            score = scoreData.totalScore || 0;
+            if (scoreData && scoreData.summarize_text_score.total_score && typeof scoreData.summarize_text_score.total_score === 'number') {
+                score = scoreData.summarize_text_score.total_score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in summarize_spoken_text response");
+            }
         } else if (subtype === 'listening_fill_in_the_blanks') {
-            score = scoreData.totalScore || 0;
+            if (scoreData && scoreData.result.score && typeof scoreData.result.score === 'number') {
+                score = scoreData.result.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in listening_fill_in_the_blanks response");
+            }
         } else if (subtype === 'listening_multiple_choice_multiple_answers') {
-            score = scoreData.totalScore || 0;
+            if (scoreData && scoreData.result.score && typeof scoreData.result.score === 'number') {
+                score = scoreData.result.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in listening_multiple_choice_multiple_answers response");
+            }
         } else if (subtype === 'listening_multiple_choice_single_answers') {
-            score = scoreData.totalScore || 0;
+            if (scoreData && scoreData.result.score && typeof scoreData.result.score === 'number') {
+                score = scoreData.result.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in listening_multiple_choice_single_answers response");
+            }
         } else {
             console.warn("Unhandled subtype:", subtype);
         }

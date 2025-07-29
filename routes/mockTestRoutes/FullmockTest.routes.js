@@ -15,6 +15,8 @@ router.delete('/delete/:id', isUserLoggedIn, isAdminUser, deleteMockTest);
 router.get('/getAll', isUserLoggedIn, getAllMockTests);
 
 
-router.post('/result-single-question', isUserLoggedIn,checkLimit(['mock']), createUploadMiddleware(['.mp3', '.wav']).single('voice'), mockTestResult);
+router.post('/result-single-question', isUserLoggedIn, createUploadMiddleware(['.mp3', '.wav']).single('voice'), mockTestResult);
 
 module.exports = router;
+
+//checkLimit(['mock'])

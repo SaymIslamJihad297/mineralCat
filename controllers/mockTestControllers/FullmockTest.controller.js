@@ -281,6 +281,8 @@ module.exports.mockTestResult = async (req, res, next) => {
 
         const scoreData = response.data;
         const subtype = question.subtype;
+        console.log(subtype);
+        
         let score = 0;
 
         if (subtype === 'read_aloud') {
@@ -295,14 +297,9 @@ module.exports.mockTestResult = async (req, res, next) => {
             score = scoreData.totalScore || 0;
         } else if (subtype === 'summarize_written_text') {
 
-            console.log(scoreData);
-            console.log(scoreData.score);
-            // console.log(typeof scoreData.data.score);
-            
-            
             if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
                 score = scoreData.score;
-                console.log("Extracted score:", score); // DEBUG
+                console.log("Extracted score:", score);
             } else {
                 console.warn("No score found in summarize_written_text response");
             }
@@ -313,7 +310,15 @@ module.exports.mockTestResult = async (req, res, next) => {
         } else if (subtype === 'rw_fill_in_the_blanks') {
             score = scoreData.totalScore || 0;
         } else if (subtype === 'mcq_multiple') {
-            score = scoreData.totalScore || 0;
+
+            console.log(scoreData);
+            
+            if (scoreData && scoreData.score && typeof scoreData.score === 'number') {
+                score = scoreData.score;
+                console.log("Extracted score:", score);
+            } else {
+                console.warn("No score found in summarize_written_text response");
+            }
         } else if (subtype === 'reorder_paragraphs') {
             score = scoreData.totalScore || 0;
         } else if (subtype === 'reading_fill_in_the_blanks') {

@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const ExpressError = require("../../utils/ExpressError");
 const mockTestResultModel = require("../../models/mockTestResult.model");
+const { asyncWrapper } = require("../../utils/AsyncWrapper");
+const { default: mongoose } = require("mongoose");
 
 const BACKENDURL = process.env.BACKENDURL;
 
@@ -446,3 +448,53 @@ module.exports.mockTestResult = async (req, res, next) => {
         next(error);
     }
 };
+
+
+
+module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
+    const { mockTestId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(mockTestId)) {
+        return res.status(400).json({ success: false, message: 'Invalid mock test ID' });
+    }
+
+    const mockTestResultDoc = await mockTestResultModel.findOne({mockTest: mockTestId});
+
+    if (!mockTestResultDoc) {
+        return res.status(404).json({ success: false, message: 'Mock test result not found' });
+    }
+
+    const results = mockTestResultDoc.results;
+
+    // Helper to find averageScore by type
+    const getScore = (type) => {
+        const result = results.find(r => r.type === type);
+        return result ? result.averageScore || 0 : 0;
+    };
+
+    const speaking = getScore('speaking');
+    const listening = getScore('listening');
+    const reading = getScore('reading');
+    const writing = getScore('writing');
+
+    const sectionScores = [speaking, listening, reading, writing];
+    const nonZeroScores = sectionScores.filter(score => score > 0);
+
+    const totalScore = nonZeroScores.length > 0
+        ? Number((nonZeroScores.reduce((sum, s) => sum + s, 0) / nonZeroScores.length).toFixed(2))
+        : 0;
+
+    const formattedResult = {
+        speaking,
+        listening,
+        reading,
+        writing,
+        totalScore,
+        testDate: new Date().toISOString()
+    };
+
+    res.status(200).json({
+        success: true,
+        data: formattedResult
+    });
+});

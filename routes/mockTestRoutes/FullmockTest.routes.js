@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { addMockTest, getSingleMockTest, updateMockTest, deleteMockTest, getAllMockTests, mockTestResult } = require("../../controllers/mockTestControllers/FullmockTest.controller");
+const { addMockTest, getSingleMockTest, updateMockTest, deleteMockTest, getAllMockTests, mockTestResult, getFormattedMockTestResult } = require("../../controllers/mockTestControllers/FullmockTest.controller");
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 const  {checkLimit}  = require('../../middleware/checkLimit');
 const createUploadMiddleware = require("../../middleware/upload");
@@ -16,6 +16,8 @@ router.get('/getAll', isUserLoggedIn, getAllMockTests);
 
 
 router.post('/result-single-question', isUserLoggedIn, createUploadMiddleware(['.mp3', '.wav']).single('voice'), mockTestResult);
+
+router.get('/get-mock-test-result/:mockTestId', isUserLoggedIn, getFormattedMockTestResult);
 
 module.exports = router;
 

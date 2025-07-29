@@ -20,6 +20,7 @@ const https = require('https');
 const { OpenAI } = require('openai');
 const practicedModel = require("../../models/practiced.model");
 const { getQuestionByQuery } = require("../../common/getQuestionFunction");
+const { speakingReadAloudResult, speakingevaluateRepeatSentenceResult, speakingrespondToASituationResult } = require("../mockTestControllers/questionResultHelper/fullMockTest.result.controller");
 
 
 const openai = new OpenAI({
@@ -349,7 +350,7 @@ module.exports.getAllReadAloud = asyncWrapper(async (req, res) => {
 });
 
 module.exports.readAloudResult = asyncWrapper(async (req, res) => {
-    return handleSpeechAssessment(req, res, 'read_aloud');
+    await speakingReadAloudResult({req, res});
 });
 
 // ============================================================
@@ -425,49 +426,58 @@ module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
 module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
     const { questionId, accent = 'us' } = req.body;
     let userFilePath = req.file?.path;
+    const userId = req.user._id;
 
-    try {
-        if (!questionId) throw new ExpressError(400, "questionId is required!");
-        if (!req.file) throw new ExpressError(400, "voice is required!");
+    const result = await speakingevaluateRepeatSentenceResult({userId, questionId, userFilePath, accent});
 
-        const question = await questionsModel.findById(questionId);
-        if (!question) throw new ExpressError(404, "Question Not Found!");
-
-        const userfileBase64 = readFileAsBase64(userFilePath);
-        const expectedText = question.audioConvertedText;
-        const finalFormat = detectAudioFormat(userFilePath);
-
-        const finalResponse = await callSpeechAssessmentAPI(
-            userfileBase64,
-            finalFormat,
-            expectedText,
-            accent
-        );
-
-        await safeDeleteFile(userFilePath);
-
-        await practicedModel.findOneAndUpdate(
-            {
-                user: req.user._id,
-                questionType: question.type,
-                subtype: question.subtype
-            },
-            {
-                $addToSet: { practicedQuestions: question._id }
-            },
-            { upsert: true, new: true }
-        );
-
-        return res.status(200).json({
-            success: true,
-            data: finalResponse
-        });
-
-    } catch (error) {
-        await safeDeleteFile(userFilePath);
-        throw error;
-    }
+    res.status(200).json(result);
 });
+// module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
+//     const { questionId, accent = 'us' } = req.body;
+//     let userFilePath = req.file?.path;
+
+//     try {
+//         if (!questionId) throw new ExpressError(400, "questionId is required!");
+//         if (!req.file) throw new ExpressError(400, "voice is required!");
+
+//         const question = await questionsModel.findById(questionId);
+//         if (!question) throw new ExpressError(404, "Question Not Found!");
+
+//         const userfileBase64 = readFileAsBase64(userFilePath);
+//         const expectedText = question.audioConvertedText;
+//         const finalFormat = detectAudioFormat(userFilePath);
+
+//         const finalResponse = await callSpeechAssessmentAPI(
+//             userfileBase64,
+//             finalFormat,
+//             expectedText,
+//             accent
+//         );
+
+//         await safeDeleteFile(userFilePath);
+
+//         await practicedModel.findOneAndUpdate(
+//             {
+//                 user: req.user._id,
+//                 questionType: question.type,
+//                 subtype: question.subtype
+//             },
+//             {
+//                 $addToSet: { practicedQuestions: question._id }
+//             },
+//             { upsert: true, new: true }
+//         );
+
+//         return res.status(200).json({
+//             success: true,
+//             data: finalResponse
+//         });
+
+//     } catch (error) {
+//         await safeDeleteFile(userFilePath);
+//         throw error;
+//     }
+// });
 
 // ============================================================
 // RESPOND TO SITUATION FUNCTIONS
@@ -542,11 +552,8 @@ module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
 
 
 module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
-    if (req.file && path.extname(req.file.originalname) !== '.wav') {
-        throw new ExpressError(401, "only .wav file is supported");
-    }
 
-    return handleSpeechAssessment(req, res, 'respond_to_situation');
+    speakingrespondToASituationResult({req, res});
 });
 
 // ============================================================

@@ -16,6 +16,7 @@ const ExpressError = require('../../utils/ExpressError');
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const practicedModel = require('../../models/practiced.model');
 const { getQuestionByQuery } = require('../../common/getQuestionFunction');
+const { evaluateMcqMultipleResult, evaluateMcqSingleResult, evaluateReadingFillInTheBlanksResult, evaluateReorderParagraphsResult } = require('../mockTestControllers/questionResultHelper/fullMockTest.result.controller');
 
 // Helper to validate and save questions
 async function validateAndSaveQuestion(validator, data, userId, subtype) {
@@ -121,29 +122,36 @@ module.exports.editMcqMultiple = asyncWrapper(async (req, res) => {
 
 module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
     const { questionId, selectedAnswers } = req.body;
-    const question = await Question.findById(questionId).lean();
-    if (!question || question.subtype !== 'mcq_multiple') {
-        throw new ExpressError(404, "Question Not Found or Invalid Type");
-    }
+    const userId = req.user._id;
+    const result = await evaluateMcqMultipleResult({userId, questionId, selectedAnswers});
 
-    const correctAnswers = question.correctAnswers;
-    const score = selectedAnswers.filter(answer => correctAnswers.includes(answer)).length;
-    const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
-
-    await practicedModel.findOneAndUpdate(
-        {
-            user: req.user._id,
-            questionType: question.type,
-            subtype: question.subtype
-        },
-        {
-            $addToSet: { practicedQuestions: question._id }
-        },
-        { upsert: true, new: true }
-    );
-
-    return res.status(200).json({ score, feedback });
+    res.json(result);
 });
+// module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
+//     const { questionId, selectedAnswers } = req.body;
+//     const question = await Question.findById(questionId).lean();
+//     if (!question || question.subtype !== 'mcq_multiple') {
+//         throw new ExpressError(404, "Question Not Found or Invalid Type");
+//     }
+
+//     const correctAnswers = question.correctAnswers;
+//     const score = selectedAnswers.filter(answer => correctAnswers.includes(answer)).length;
+//     const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+//     await practicedModel.findOneAndUpdate(
+//         {
+//             user: req.user._id,
+//             questionType: question.type,
+//             subtype: question.subtype
+//         },
+//         {
+//             $addToSet: { practicedQuestions: question._id }
+//         },
+//         { upsert: true, new: true }
+//     );
+
+//     return res.status(200).json({ score, feedback });
+// });
 
 // ---------------------- mcq_single ----------------------
 module.exports.addMcqSingle = asyncWrapper(async (req, res) => {
@@ -192,28 +200,42 @@ module.exports.editMcqSingle = asyncWrapper(async (req, res) => {
 
 module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
     const { questionId, userAnswer } = req.body;
-    const question = await Question.findById(questionId).lean();
 
-    if (!question || question.subtype !== 'mcq_single') {
-        throw new ExpressError(404, "Question not found or invalid type");
-    }
+    const userId = req.user._id;
+    const result = await evaluateMcqSingleResult({userId, questionId, userAnswer});
 
-    const isCorrect = question.correctAnswers.includes(userAnswer);
-
-    await practicedModel.findOneAndUpdate(
-        {
-            user: req.user._id,
-            questionType: question.type,
-            subtype: question.subtype
-        },
-        {
-            $addToSet: { practicedQuestions: question._id }
-        },
-        { upsert: true, new: true }
-    );
-
-    return res.status(200).json({ isCorrect, message: isCorrect ? "Correct answer!" : "Incorrect answer!" });
+    res.json(result);
 });
+// module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
+//     const { questionId, userAnswer } = req.body;
+//     const question = await Question.findById(questionId).lean();
+
+//     if (!question || question.subtype !== 'mcq_single') {
+//         throw new ExpressError(404, "Question not found or invalid type");
+//     }
+
+//     const isCorrect = question.correctAnswers.includes(userAnswer);
+//     const score = isCorrect ? 1 : 0;
+
+//     await practicedModel.findOneAndUpdate(
+//         {
+//             user: req.user._id,
+//             questionType: question.type,
+//             subtype: question.subtype
+//         },
+//         {
+//             $addToSet: { practicedQuestions: question._id }
+//         },
+//         { upsert: true, new: true }
+//     );
+
+//     return res.status(200).json({
+//         isCorrect,
+//         score,
+//         message: isCorrect ? "Correct answer!" : "Incorrect answer!"
+//     });
+// });
+
 
 // ---------------------- reading_fill_in_the_blanks ----------------------
 module.exports.addReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
@@ -257,38 +279,45 @@ module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
 
 module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
     const { questionId, blanks } = req.body;
-    const question = await Question.findById(questionId).lean();
-    if (!question || question.subtype !== 'reading_fill_in_the_blanks') {
-        throw new ExpressError(404, "Question Not Found!");
-    }
-
-    let score = 0;
-    const totalBlanks = question.blanks.length;
-
-    blanks.forEach((userBlank) => {
-        const correctBlank = question.blanks.find((blank) => blank.index === userBlank.index);
-        if (correctBlank && userBlank.selectedAnswer === correctBlank.correctAnswer) {
-            score++;
-        }
-    });
-
-    const result = { score, totalBlanks };
-    const feedback = `You scored ${score} out of ${totalBlanks}.`;
-
-    await practicedModel.findOneAndUpdate(
-        {
-            user: req.user._id,
-            questionType: question.type,
-            subtype: question.subtype
-        },
-        {
-            $addToSet: { practicedQuestions: question._id }
-        },
-        { upsert: true, new: true }
-    );
-
-    return res.status(200).json({ result, feedback });
+    const userId = req.user._id;
+    const result = await evaluateReadingFillInTheBlanksResult({userId, questionId, blanks});
+    
+    res.status(200).json(result);
 });
+// module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
+//     const { questionId, blanks } = req.body;
+//     const question = await Question.findById(questionId).lean();
+//     if (!question || question.subtype !== 'reading_fill_in_the_blanks') {
+//         throw new ExpressError(404, "Question Not Found!");
+//     }
+
+//     let score = 0;
+//     const totalBlanks = question.blanks.length;
+
+//     blanks.forEach((userBlank) => {
+//         const correctBlank = question.blanks.find((blank) => blank.index === userBlank.index);
+//         if (correctBlank && userBlank.selectedAnswer === correctBlank.correctAnswer) {
+//             score++;
+//         }
+//     });
+
+//     const result = { score, totalBlanks };
+//     const feedback = `You scored ${score} out of ${totalBlanks}.`;
+
+//     await practicedModel.findOneAndUpdate(
+//         {
+//             user: req.user._id,
+//             questionType: question.type,
+//             subtype: question.subtype
+//         },
+//         {
+//             $addToSet: { practicedQuestions: question._id }
+//         },
+//         { upsert: true, new: true }
+//     );
+
+//     return res.status(200).json({ result, feedback });
+// });
 
 // ---------------------- reorder_paragraphs ----------------------
 module.exports.addReOrderParagraphs = asyncWrapper(async (req, res) => {
@@ -356,41 +385,49 @@ module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
 
 module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
     const { questionId, userReorderedOptions } = req.body;
-    const question = await Question.findById(questionId).lean();
 
-    if (!question || question.subtype !== 'reorder_paragraphs') {
-        throw new ExpressError(404, "Question not found or invalid type");
-    }
+    const userId = req.user._id;
+    const result = await evaluateReorderParagraphsResult({userId, questionId, userReorderedOptions});
 
-    const correctAnswers = question.options;
-    let score = 0;
-
-    userReorderedOptions.forEach((userAnswer, index) => {
-        if (userAnswer === correctAnswers[index]) {
-            score++;
-        }
-    });
-
-    const totalScore = (score / correctAnswers.length) * 100;
-
-    await practicedModel.findOneAndUpdate(
-        {
-            user: req.user._id,
-            questionType: question.type,
-            subtype: question.subtype
-        },
-        {
-            $addToSet: { practicedQuestions: question._id }
-        },
-        { upsert: true, new: true }
-    );
-
-    return res.status(200).json({
-        score: totalScore,
-        message: `You scored ${score} out of ${correctAnswers.length} points.`,
-        userAnswer: userReorderedOptions,
-        correctAnswer: correctAnswers
-    });
+    res.status(200).json(result);
 });
+// module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
+//     const { questionId, userReorderedOptions } = req.body;
+//     const question = await Question.findById(questionId).lean();
+
+//     if (!question || question.subtype !== 'reorder_paragraphs') {
+//         throw new ExpressError(404, "Question not found or invalid type");
+//     }
+
+//     const correctAnswers = question.options;
+//     let score = 0;
+
+//     userReorderedOptions.forEach((userAnswer, index) => {
+//         if (userAnswer === correctAnswers[index]) {
+//             score++;
+//         }
+//     });
+
+//     const totalScore = (score / correctAnswers.length) * 100;
+
+//     await practicedModel.findOneAndUpdate(
+//         {
+//             user: req.user._id,
+//             questionType: question.type,
+//             subtype: question.subtype
+//         },
+//         {
+//             $addToSet: { practicedQuestions: question._id }
+//         },
+//         { upsert: true, new: true }
+//     );
+
+//     return res.status(200).json({
+//         score: totalScore,
+//         message: `You scored ${score} out of ${correctAnswers.length} points.`,
+//         userAnswer: userReorderedOptions,
+//         correctAnswer: correctAnswers
+//     });
+// });
 
 

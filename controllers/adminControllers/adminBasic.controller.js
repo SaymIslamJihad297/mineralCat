@@ -8,27 +8,27 @@ const ExpressError = require("../../utils/ExpressError");
 const { LoginFormValidator } = require("../../validations/schemaValidations");
 
 
-module.exports.getCounts = asyncWrapper(async(req, res)=>{
+module.exports.getCounts = asyncWrapper(async (req, res) => {
     const userCount = await userModels.countDocuments({});
     const questionCount = await questionsModel.countDocuments({});
     const mockTestCount = await mock_testModel.countDocuments({});
 
 
-    res.status(200).json({userCount, questionCount, mockTestCount});
+    res.status(200).json({ userCount, questionCount, mockTestCount });
 
 })
 
 
-module.exports.deleteUsers = asyncWrapper(async(req, res)=>{
-    const {id} = req.params;
+module.exports.deleteUsers = asyncWrapper(async (req, res) => {
+    const { id } = req.params;
 
     const user = await userModels.findByIdAndDelete(id);
 
-    if(!user){
-        res.status(401).json({message: "User not found!"});
+    if (!user) {
+        res.status(401).json({ message: "User not found!" });
     }
 
-    res.status(200).json({message: "User Deleted Successfully"});
+    res.status(200).json({ message: "User Deleted Successfully" });
 })
 
 
@@ -100,64 +100,68 @@ module.exports.getAllUsers = asyncWrapper(async (req, res) => {
 });
 
 
-module.exports.loginUser = asyncWrapper(async(req, res)=>{
-    const {error, value} = LoginFormValidator.validate(req.body);
+module.exports.loginUser = asyncWrapper(async (req, res) => {
+    const { error, value } = LoginFormValidator.validate(req.body);
 
-    const {email, password} = value;
+    if (error) {
+        throw new ExpressError(400, error.details[0].message);
+    }
 
-    const user = await userModels.findOne({email});
-    if(!user) return res.status(400).json({message: "Wrong email or password"});
+    const { email, password } = value;
 
-    if(user.role!=='admin'){
-        return res.status(401).json({message: "Forbidden - Admins only"});
+    const user = await userModels.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Wrong email or password" });
+
+    if (user.role !== 'admin') {
+        return res.status(401).json({ message: "Forbidden - Admins only" });
     }
 
     const checkPassword = await user.verifyPassword(password);
 
-    if(!checkPassword) return res.status(400).json({message: "Wrong email or password"});
+    if (!checkPassword) return res.status(400).json({ message: "Wrong email or password" });
 
-    const {accessToken, refreshToken} = await accessTokenAndRefreshTokenGenerator(user._id);
+    const { accessToken, refreshToken } = await accessTokenAndRefreshTokenGenerator(user._id);
 
     return res
-    .status(200)
-    .json(
-        {
-            user: user,
-            accessToken,
-            refreshToken,
-        }
-    )
+        .status(200)
+        .json(
+            {
+                user: user,
+                accessToken,
+                refreshToken,
+            }
+        )
 })
 
 
-module.exports.deleteQuestion = asyncWrapper(async(req, res)=>{
-    const {id} = req.params;
-    
+module.exports.deleteQuestion = asyncWrapper(async (req, res) => {
+    const { id } = req.params;
+
 
     await questionsModel.findByIdAndDelete(id);
 
-    res.status(200).json({message: "Question Deleted"});
+    res.status(200).json({ message: "Question Deleted" });
 })
 
 
 module.exports.addNotification = asyncWrapper(async (req, res) => {
-  const { title, description, targetSubscription } = req.body;
+    const { title, description, targetSubscription } = req.body;
 
-  if (!['bronze', 'silver', 'gold', 'all'].includes(targetSubscription)) {
-    return res.status(400).json({ message: "Invalid subscription target." });
-  }
+    if (!['bronze', 'silver', 'gold', 'all'].includes(targetSubscription)) {
+        return res.status(400).json({ message: "Invalid subscription target." });
+    }
 
-  const notification = await notificationModel.create({
-    title,
-    description,
-    targetSubscription,
-  });
+    const notification = await notificationModel.create({
+        title,
+        description,
+        targetSubscription,
+    });
 
-  return res.status(201).json({
-    success: true,
-    data: notification,
-    message: "Notification created successfully.",
-  });
+    return res.status(201).json({
+        success: true,
+        data: notification,
+        message: "Notification created successfully.",
+    });
 });
 
 

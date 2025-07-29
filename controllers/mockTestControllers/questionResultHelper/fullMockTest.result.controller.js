@@ -1,0 +1,359 @@
+const questionModel = require('../../../models/questions.model');
+const practicedModel = require('../../../models/practiced.model');
+const ExpressError = require('../../../utils/ExpressError');
+const path = require('path');
+const fs = require('node:fs');
+const { default: axios } = require("axios");
+const fsPromises = require('fs').promises;
+const { OpenAI } = require('openai');
+
+async function evaluateMcqMultipleResult({ userId, questionId, selectedAnswers }) {
+  const question = await questionModel.findById(questionId).lean();
+
+  if (!question || question.subtype !== 'mcq_multiple') {
+    throw new ExpressError(404, "Question Not Found or Invalid Type");
+  }
+
+  const correctAnswers = question.correctAnswers;
+  const score = selectedAnswers.filter(answer => correctAnswers.includes(answer)).length;
+  const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
+
+  await practicedModel.findOneAndUpdate(
+    { user: userId, questionType: question.type, subtype: question.subtype },
+    { $addToSet: { practicedQuestions: question._id } },
+    { upsert: true, new: true }
+  );
+
+  return { score, feedback };
+}
+
+// MCQ Single result evaluator
+async function evaluateMcqSingleResult({ userId, questionId, userAnswer }) {
+  const question = await Question.findById(questionId).lean();
+  if (!question || question.subtype !== 'mcq_single') {
+    throw new ExpressError(404, "Question not found or invalid type");
+  }
+
+  const isCorrect = question.correctAnswers.includes(userAnswer);
+
+  await practicedModel.findOneAndUpdate(
+    { user: userId, questionType: question.type, subtype: question.subtype },
+    { $addToSet: { practicedQuestions: question._id } },
+    { upsert: true, new: true }
+  );
+
+  return { isCorrect, message: isCorrect ? "Correct answer!" : "Incorrect answer!" };
+}
+
+// Reading Fill in the Blanks result evaluator
+async function evaluateReadingFillInTheBlanksResult({ userId, questionId, blanks }) {
+  const question = await questionModel.findById(questionId).lean();
+  if (!question || question.subtype !== 'reading_fill_in_the_blanks') {
+    throw new ExpressError(404, "Question Not Found!");
+  }
+
+  let score = 0;
+  const totalBlanks = question.blanks.length;
+
+  blanks.forEach(userBlank => {
+    const correctBlank = question.blanks.find(blank => blank.index === userBlank.index);
+    if (correctBlank && userBlank.selectedAnswer === correctBlank.correctAnswer) {
+      score++;
+    }
+  });
+
+  const feedback = `You scored ${score} out of ${totalBlanks}.`;
+
+  await practicedModel.findOneAndUpdate(
+    { user: userId, questionType: question.type, subtype: question.subtype },
+    { $addToSet: { practicedQuestions: question._id } },
+    { upsert: true, new: true }
+  );
+
+  return { result: { score, totalBlanks }, feedback };
+}
+
+// Reorder Paragraphs result evaluator
+async function evaluateReorderParagraphsResult({ userId, questionId, userReorderedOptions }) {
+  const question = await questionModel.findById(questionId).lean();
+  if (!question || question.subtype !== 'reorder_paragraphs') {
+    throw new ExpressError(404, "Question not found or invalid type");
+  }
+
+  const correctAnswers = question.options;
+  let score = 0;
+
+  userReorderedOptions.forEach((userAnswer, index) => {
+    if (userAnswer === correctAnswers[index]) {
+      score++;
+    }
+  });
+
+  const totalScore = (score / correctAnswers.length) * 100;
+
+  await practicedModel.findOneAndUpdate(
+    { user: userId, questionType: question.type, subtype: question.subtype },
+    { $addToSet: { practicedQuestions: question._id } },
+    { upsert: true, new: true }
+  );
+
+  return {
+    score: totalScore,
+    message: `You scored ${score} out of ${correctAnswers.length} points.`,
+    userAnswer: userReorderedOptions,
+    correctAnswer: correctAnswers,
+  };
+}
+
+// reading mcqsingle 
+async function evaluateMcqSingleResult({ userId, questionId, userAnswer }) {
+    const question = await questionModel.findById(questionId).lean();
+
+    if (!question || question.subtype !== 'mcq_single') {
+        throw new ExpressError(404, "Question not found or invalid type");
+    }
+
+    const isCorrect = question.correctAnswers.includes(userAnswer);
+    const score = isCorrect ? 1 : 0;
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: userId,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
+
+    return {
+        isCorrect,
+        score,
+        message: isCorrect ? "Correct answer!" : "Incorrect answer!"
+    };
+}
+
+// speaking ----------------------------------------------------------------------
+// ===============================================================================
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function safeDeleteFile(filePath) {
+    if (filePath) {
+        try {
+            await fsPromises.unlink(filePath);
+        } catch (err) {
+            console.error("Failed to delete temp file:", err);
+        }
+    }
+}
+
+function readFileAsBase64(filePath) {
+    try {
+        const fileBuffer = fs.readFileSync(filePath);
+        return fileBuffer.toString('base64');
+    } catch (readError) {
+        console.error("Failed to read file from disk:", readError);
+        throw new ExpressError(500, "Failed to read file from disk: " + readError.message);
+    }
+}
+
+async function uploadToCloudinary(file, folderName) {
+    if (!file) throw new ExpressError(400, 'Please upload a file');
+
+    const result = await cloudinary.uploader.upload(file.path, {
+        resource_type: 'auto',
+        public_id: `${path.basename(file.originalname, path.extname(file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        folder: `listening_test/${folderName}`,
+        type: 'authenticated',
+    });
+
+    fs.unlinkSync(file.path);
+    return result.secure_url;
+}
+
+
+const detectAudioFormat = (audioUrl, contentType) => {
+    const extension = path.extname(audioUrl).toLowerCase();
+
+    if (extension === '.mp3' || contentType?.includes('mpeg')) return 'mp3';
+    if (extension === '.wav' || contentType?.includes('wav')) return 'wav';
+    if (extension === '.m4a' || contentType?.includes('m4a')) return 'm4a';
+    if (extension === '.ogg' || contentType?.includes('ogg')) return 'ogg';
+
+    return 'mp3';
+};
+
+const extractTranscript = (apiResponse) => {
+    try {
+        if (apiResponse.vocabulary?.feedback?.tagged_transcript) {
+            return apiResponse.vocabulary.feedback.tagged_transcript;
+        }
+
+        if (apiResponse.fluency?.feedback?.tagged_transcript) {
+            return apiResponse.fluency.feedback.tagged_transcript
+                .replace(/<discourse-marker[^>]*>(.*?)<\/discourse-marker>/g, '$1')
+                .replace(/<[^>]*>/g, '')
+                .trim();
+        }
+
+        if (apiResponse.metadata?.predicted_text) {
+            return apiResponse.metadata.predicted_text;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error extracting transcript:', error);
+        return null;
+    }
+};
+
+async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, accent) {
+    const data = JSON.stringify({
+        "audio_base64": audioBase64,
+        "audio_format": audioFormat,
+        "expected_text": expectedText,
+    });
+
+    const config = {
+        method: 'post',
+        maxBodyLength: Infinity,
+        url: `${process.env.LANGUAGE_CONFIDENCE_BASE_URL}/speech-assessment/scripted/${accent}`,
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': process.env.LANGUAGE_CONFIDENCE_SECONDARY_API,
+        },
+        data: data
+    };
+
+    try {
+        const response = await axios.request(config);
+        return response.data;
+    } catch (error) {
+        console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
+
+        const errorMessage = error.response
+            ? JSON.stringify(error.response.data)
+            : error.message;
+
+        throw new ExpressError(500, "Error assessing speech: " + errorMessage);
+    }
+}
+
+async function handleSpeechAssessment(req, res, expectedSubtype, useDirectPrompt = true) {
+    const { questionId, accent = 'us', format } = req.body;
+    let userFilePath = req.file?.path;
+
+    try {
+        if (!questionId) throw new ExpressError(400, "questionId is required!");
+        if (!req.file) throw new ExpressError(400, "voice is required!");
+
+        const question = await questionModel.findById(questionId);
+        if (!question) {
+            throw new ExpressError(404, "Question not found!");
+        }
+
+        if (question.subtype !== expectedSubtype) {
+            throw new ExpressError(401, "this is not valid questionType for this route!");
+        }
+
+        const userFileBase64 = readFileAsBase64(userFilePath);
+        const audioFormat = format || detectAudioFormat(userFilePath);
+
+        const expectedText = useDirectPrompt ? question.prompt : question.prompt;
+
+        const response = await callSpeechAssessmentAPI(
+            userFileBase64,
+            audioFormat,
+            expectedText,
+            accent
+        );
+
+        await safeDeleteFile(userFilePath);
+
+        await practicedModel.findOneAndUpdate(
+            {
+                user: req.user._id,
+                questionType: question.type,
+                subtype: question.subtype
+            },
+            {
+                $addToSet: { practicedQuestions: question._id }
+            },
+            { upsert: true, new: true }
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: response
+        });
+
+    } catch (error) {
+        await safeDeleteFile(userFilePath);
+        throw error;
+    }
+}
+
+async function speakingReadAloudResult({req, res}) {
+    return handleSpeechAssessment(req, res, 'read_aloud');
+};
+
+
+async function speakingevaluateRepeatSentenceResult({ userId, questionId, userFilePath, accent = 'us' }) {
+    if (!questionId) throw new ExpressError(400, "questionId is required!");
+    if (!userFilePath) throw new ExpressError(400, "voice file path is required!");
+
+    const question = await questionModel.findById(questionId);
+    if (!question) throw new ExpressError(404, "Question Not Found!");
+
+    const userfileBase64 = readFileAsBase64(userFilePath);
+    const expectedText = question.audioConvertedText;
+    const finalFormat = detectAudioFormat(userFilePath);
+
+    let finalResponse;
+    try {
+        finalResponse = await callSpeechAssessmentAPI(
+            userfileBase64,
+            finalFormat,
+            expectedText,
+            accent
+        );
+    } finally {
+        await safeDeleteFile(userFilePath);
+    }
+
+    await practicedModel.findOneAndUpdate(
+        {
+            user: userId,
+            questionType: question.type,
+            subtype: question.subtype
+        },
+        {
+            $addToSet: { practicedQuestions: question._id }
+        },
+        { upsert: true, new: true }
+    );
+
+    return finalResponse;
+}
+
+async function speakingrespondToASituationResult({req, res}) {
+
+    return handleSpeechAssessment(req, res, 'respond_to_situation');
+};
+
+
+module.exports = {
+  evaluateMcqMultipleResult,
+  evaluateMcqSingleResult,
+  evaluateReadingFillInTheBlanksResult,
+  evaluateReorderParagraphsResult,
+  evaluateMcqSingleResult,
+  speakingReadAloudResult,
+  speakingevaluateRepeatSentenceResult,
+  speakingrespondToASituationResult
+};

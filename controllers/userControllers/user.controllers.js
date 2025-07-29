@@ -59,6 +59,10 @@ module.exports.signUpUser = asyncWrapper(async (req, res) => {
 module.exports.loginUser = asyncWrapper(async (req, res) => {
   const { error, value } = LoginFormValidator.validate(req.body);
 
+  if (error) {
+    throw new ExpressError(400, error.details[0].message);
+  }
+
   const { email, password } = value;
 
   const user = await userModels.findOne({ email });

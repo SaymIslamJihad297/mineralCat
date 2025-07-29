@@ -1,14 +1,43 @@
 const FullmockTestSchema = require("../../models/mock_test.model");
 const { mockTestSchemaValidator } = require("../../validations/schemaValidations");
+const questionsModel = require("../../models/questions.model");
+const { default: axios } = require("axios");
+const FormData = require('form-data');
+const fs = require('fs');
+const path = require('path');
+const ExpressError = require("../../utils/ExpressError");
 
+const BACKENDURL = process.env.BACKENDURL;
+
+const subtypeApiUrls = {
+    read_aloud: `${BACKENDURL}test/speaking/read_aloud/result`,
+    repeat_sentence: `${BACKENDURL}/test/speaking/repeat_sentence/result`,
+    describe_image: `${BACKENDURL}/result/describe_image`,
+    respond_to_situation: `${BACKENDURL}/test/speaking/respond-to-a-situation/result`,
+    answer_short_question: `${BACKENDURL}/test/speaking/answer_short_question/result`,
+
+    summarize_written_text: `${BACKENDURL}/test/writing/summerize-written-text/result`,
+    write_email: `${BACKENDURL}/test/writing/write_email/result`,
+
+    rw_fill_in_the_blanks: `${BACKENDURL}/result/rw_fill_in_the_blanks`,
+    mcq_multiple: `${BACKENDURL}/test/reading/mcq_multiple/result`,
+    reorder_paragraphs: `${BACKENDURL}/test/reading/reorder-paragraphs/result`,
+    reading_fill_in_the_blanks: `${BACKENDURL}/test/reading/reading-fill-in-the-blanks/result`,
+    mcq_single: `${BACKENDURL}/test/reading/mcq_single/result`,
+
+    summarize_spoken_text: `${BACKENDURL}/test/listening/summarize-spoken-text/result`,
+    listening_fill_in_the_blanks: `${BACKENDURL}/test/listening/listening-fill-in-the-blanks/result`,
+    listening_multiple_choice_multiple_answers: `${BACKENDURL}/test/listening/multiple-choice-multiple-answers/result`,
+    listening_multiple_choice_single_answers: `${BACKENDURL}/test/listening/multiple-choice-single-answers/result`
+};
 
 module.exports.addMockTest = async (req, res) => {
 
-    console.log(req.body);
-    
-
     const {error, value} = mockTestSchemaValidator.validate(req.body);
-    const {name, duration: {hours, minutes}, questions} = value;
+    if (error) {
+        throw new ExpressError(400, error.details[0].message);
+    }
+    const { name, duration: { hours, minutes }, questions } = value;
     const userId = req.user._id;
 
     const newMockTest = await FullmockTestSchema.create({
@@ -40,7 +69,7 @@ module.exports.getSingleMockTest = async (req, res) => {
     try {
         const mockTest = await FullmockTestSchema.findById(id).populate("questions");
         console.log(mockTest);
-        
+
         if (!mockTest) {
             return res.status(404).json({ message: "Mock test not found" });
         }
@@ -100,18 +129,215 @@ module.exports.deleteMockTest = async (req, res) => {
 
 
 module.exports.getAllMockTests = async (req, res) => {
-  try {
-    const FullmockTests = await FullmockTestSchema.find({}, { name: 1, duration: 1 })
-      .sort({ createdAt: -1 });
+    try {
+        const FullmockTests = await FullmockTestSchema.find({}, { name: 1, duration: 1 })
+            .sort({ createdAt: -1 });
 
-    const totalCount = await FullmockTestSchema.countDocuments();
+        const totalCount = await FullmockTestSchema.countDocuments();
 
-    res.status(200).json({
-      totalCount,
-      FullmockTests
-    });
-  } catch (error) {
-    console.error("Error fetching mock tests:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
+        res.status(200).json({
+            totalCount,
+            FullmockTests
+        });
+    } catch (error) {
+        console.error("Error fetching mock tests:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };
+
+
+// module.exports.mockTestResult = async (req, res, next) => {
+//   try {
+//     const { questionId } = req.body;
+//     if (!questionId) throw new ExpressError(400, "questionId is required");
+
+//     const question = await questionsModel.findById(questionId).lean();
+//     if (!question) throw new ExpressError(404, "Invalid questionId or question not found");
+
+//     const apiUrl = subtypeApiUrls[question.subtype];
+//     if (!apiUrl) throw new ExpressError(400, "Unsupported question subtype");
+
+//     // Handle arrays sent as JSON strings (e.g. selectedAnswers)
+//     const newData = { ...req.body };
+//     for (let key in newData) {
+//       if (typeof newData[key] === "string" && newData[key].startsWith("[") && newData[key].endsWith("]")) {
+//         try {
+//           newData[key] = JSON.parse(newData[key]);
+//         } catch (e) {
+//           console.warn(`Failed to parse ${key} as JSON array`);
+//         }
+//       }
+//     }
+
+//     if (req.file) {
+
+//       const form = new FormData();
+
+//       for (const key in newData) {
+//         form.append(key, typeof newData[key] === 'object' ? JSON.stringify(newData[key]) : newData[key]);
+//       }
+
+//       form.append("voice", fs.createReadStream(req.file.path));
+
+
+//       const response = await axios.post(apiUrl, form, {
+//         headers: {
+//           ...form.getHeaders(),
+//           Authorization: req.headers.authorization || '',
+//         },
+//       });
+
+//       // Optionally delete file after sending
+//       fs.unlink(req.file.path, (err) => {
+//         if (err) console.warn("Failed to delete file:", err);
+//       });
+
+//       return res.status(200).json({
+//         success: true,
+//         data: response.data,
+//       });
+//     } else {
+//       // If no file, send JSON normally
+//       const response = await axios.post(apiUrl, newData, {
+//         headers: {
+//           Authorization: req.headers.authorization || '',
+//         },
+//       });
+
+//       return res.status(200).json({
+//         success: true,
+//         data: response.data,
+//       });
+//     }
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+module.exports.mockTestResult = async (req, res, next) => {
+    try {
+        const { questionId, mockTestId } = req.body;
+        const userId = req.user._id;
+
+        if (!questionId || !mockTestId) throw new ExpressError(400, "questionId and mockTestId are required");
+
+        const question = await questionsModel.findById(questionId).lean();
+        if (!question) throw new ExpressError(404, "Invalid questionId or question not found");
+
+        const mockTest = await FullmockTestSchema.findById(mockTestId).lean();
+        if (!mockTest) throw new ExpressError(404, "Invalid mockTestId or mock test not found");
+
+        const isQuestionInMockTest = mockTest.questions.some(qId => qId.toString() === questionId);
+        if (!isQuestionInMockTest) throw new ExpressError(400, "This question does not belong to the specified mock test");
+
+        const apiUrl = subtypeApiUrls[question.subtype];
+        if (!apiUrl) throw new ExpressError(400, "Unsupported question subtype");
+
+        const newData = { ...req.body };
+        for (let key in newData) {
+            if (typeof newData[key] === "string" && newData[key].startsWith("[") && newData[key].endsWith("]")) {
+                try {
+                    newData[key] = JSON.parse(newData[key]);
+                } catch (e) {
+                    console.warn(`Failed to parse ${key} as JSON array`);
+                }
+            }
+        }
+
+        let response;
+        if (req.file) {
+            const form = new FormData();
+            for (const key in newData) {
+                form.append(key, typeof newData[key] === 'object' ? JSON.stringify(newData[key]) : newData[key]);
+            }
+            form.append("voice", fs.createReadStream(req.file.path));
+
+            response = await axios.post(apiUrl, form, {
+                headers: {
+                    ...form.getHeaders(),
+                    Authorization: req.headers.authorization || '',
+                },
+            });
+
+            fs.unlink(req.file.path, (err) => {
+                if (err) console.warn("Failed to delete file:", err);
+            });
+        } else {
+            response = await axios.post(apiUrl, newData, {
+                headers: {
+                    Authorization: req.headers.authorization || '',
+                },
+            });
+        }
+
+        const scoreData = response.data;
+        const subtype = question.subtype;
+        let score = 0;
+
+        if (subtype === 'read_aloud') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'repeat_sentence') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'describe_image') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'respond_to_situation') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'answer_short_question') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'summarize_written_text') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'write_email') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'rw_fill_in_the_blanks') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'mcq_multiple') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'reorder_paragraphs') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'reading_fill_in_the_blanks') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'mcq_single') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'summarize_spoken_text') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'listening_fill_in_the_blanks') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'listening_multiple_choice_multiple_answers') {
+            score = scoreData.totalScore || 0;
+        } else if (subtype === 'listening_multiple_choice_single_answers') {
+            score = scoreData.totalScore || 0;
+        } else {
+            console.warn("Unhandled subtype:", subtype);
+        }
+
+        // Save to DB (example)
+        const resultRecord = await MockTestResultModel.findOne({ user: userId, mockTest: mockTestId });
+        const resultObj = {
+            questionId,
+            subtype,
+            score,
+            data: scoreData,
+        };
+
+        if (!resultRecord) {
+            await MockTestResultModel.create({
+                user: userId,
+                mockTest: mockTestId,
+                results: [resultObj],
+            });
+        } else {
+            resultRecord.results.push(resultObj);
+            await resultRecord.save();
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: scoreData,
+            score,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+

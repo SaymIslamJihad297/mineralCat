@@ -10,6 +10,7 @@ const mockTestResultModel = require("../../models/mockTestResult.model");
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const { default: mongoose } = require("mongoose");
 const practicedModel = require("../../models/practiced.model");
+const supscriptionModel = require("../../models/supscription.model");
 
 const BACKENDURL = process.env.BACKENDURL;
 
@@ -498,10 +499,11 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
         { user: userId },
         { $addToSet: { completedMockTests: mockTestId } },
         { upsert: true }
-    );
+    ); 
+    
 
     res.status(200).json({
         success: true,
-        data: formattedResult
+        data: formattedResult,
     });
 });

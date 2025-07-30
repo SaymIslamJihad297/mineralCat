@@ -419,8 +419,12 @@ module.exports.userProgress = asyncWrapper(async (req, res) => {
         }
     };
 
+    const userSub = await supscriptionModel.findOne({user: userId});   
+    
+
     res.status(200).json({
         success: true,
-        data: progressData
+        data: progressData,
+        userTarget: userSub.aiScoringLimit
     });
 });

@@ -6,6 +6,7 @@ const httpStatus = require('http-status');
 const StripePaymentGateway = require('../models/payment.model');
 const User = require('../models/user.models');
 const Subscription = require('../models/supscription.model');
+const paymenthistoryModel = require('../models/paymenthistory.model');
 
 /**
  * Configuration setup for Stripe integration
@@ -528,6 +529,24 @@ async function handleWebhook(event) {
             await subscription.save();
             console.log(`New subscription created for user ${userId} with plan: ${planType}`);
           }
+
+          const paymentRecord = new paymenthistoryModel({
+            user: userId,
+            planType: planType,
+            amount: amountPaid,
+            currency: currency,
+            provider: 'stripe',
+            transactionId: transactionId,
+            paymentDate: now,
+            status: 'success',
+            meta: {
+              sessionId: session.id,
+              subscriptionId: subscription._id,
+              customer: session.customer,
+              email: session.customer_email,
+            },
+          });
+          await paymentRecord.save();
 
           // --- 2. Update User's `userSubscription` reference ---
           const user = await User.findById(userId);

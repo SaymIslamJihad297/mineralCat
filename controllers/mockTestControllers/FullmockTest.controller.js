@@ -256,6 +256,30 @@ module.exports.mockTestResult = async (req, res, next) => {
             }
         }
 
+        const subscription = await supscriptionModel.findOne({
+            user: userId,
+            isActive: true
+        });
+
+        if (!subscription) {
+            return res.status(404).json({ success: false, message: "Active subscription not found" });
+        }
+
+        if (subscription.mockTestLimit > 0) {
+            await supscriptionModel.findOneAndUpdate(
+                { _id: subscription._id },
+                {
+                    $inc: {
+                        credits: 1,
+                    }
+                }
+            );
+        } else {
+            return res.status(403).json({ success: false, message: "Your mock test limit is 0" });
+        }
+
+
+
         let response;
         if (req.file) {
             const form = new FormData();
@@ -447,6 +471,27 @@ module.exports.mockTestResult = async (req, res, next) => {
             score,
         });
     } catch (error) {
+        const subscription = await supscriptionModel.findOne({
+            user: userId,
+            isActive: true
+        });
+
+        if (!subscription) {
+            return res.status(404).json({ success: false, message: "Active subscription not found" });
+        }
+
+        if (subscription.mockTestLimit > 0) {
+            await supscriptionModel.findOneAndUpdate(
+                { _id: subscription._id },
+                {
+                    $inc: {
+                        credits: -1,
+                    }
+                }
+            );
+        } else {
+            return res.status(403).json({ success: false, message: "Your mock test limit is 0" });
+        }
         next(error);
     }
 };
@@ -461,7 +506,7 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
         return res.status(400).json({ success: false, message: 'Invalid mock test ID' });
     }
 
-    const mockTestResultDoc = await mockTestResultModel.findOne({mockTest: mockTestId});
+    const mockTestResultDoc = await mockTestResultModel.findOne({ mockTest: mockTestId });
 
     if (!mockTestResultDoc) {
         return res.status(404).json({ success: false, message: 'Mock test result not found' });
@@ -499,8 +544,8 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
         { user: userId },
         { $addToSet: { completedMockTests: mockTestId } },
         { upsert: true }
-    ); 
-    
+    );
+
 
     res.status(200).json({
         success: true,

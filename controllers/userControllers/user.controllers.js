@@ -407,8 +407,8 @@ module.exports.userProgress = asyncWrapper(async (req, res) => {
     const completedSectionalTests = await practicedModel.distinct('completedSectionalTests', { user: userId });
 
     const progressData = {
-        typeProgress, // e.g., speaking: "75%"
-        typeCounts,   // e.g., speaking: { repeat_sentence: { total, completed } }
+        typeProgress,
+        typeCounts,
         mockTests: {
             total: totalMockTests,
             completed: completedMockTests.length
@@ -419,7 +419,7 @@ module.exports.userProgress = asyncWrapper(async (req, res) => {
         }
     };
 
-    const userSub = await supscriptionModel.findOne({user: userId});   
+    const userSub = await supscriptionModel.findOne({user: userId});
     
 
     res.status(200).json({

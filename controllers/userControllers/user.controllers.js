@@ -12,6 +12,9 @@ const questionModel = require('../../models/questions.model');
 const ExpressError = require('../../utils/ExpressError');
 const bookmarkModel = require('../../models/bookmark.model');
 const notificationModel = require('../../models/notification.model');
+const practicedModel = require('../../models/practiced.model');
+const mock_testModel = require('../../models/mock_test.model');
+const sectionalMockTestModel = require('../../models/sectionalMockTest.model');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -361,6 +364,56 @@ module.exports.getUnseenNotificationCount = asyncWrapper(async (req, res) => {
 
 
 
-module.exports.userProgress = asyncWrapper(async(req, res)=>{
-  
-})
+module.exports.userProgress = asyncWrapper(async (req, res) => {
+    const userId = req.user._id;
+
+    const questionTypes = ['speaking', 'writing', 'reading', 'listening'];
+    const typeProgress = {};
+    const typeCounts = {};
+
+    for (const type of questionTypes) {
+        const totalQuestions = await questionModel.countDocuments({ type });
+
+        const practicedDocs = await practicedModel.find({ user: userId, questionType: type });
+
+        let completedQuestionsSet = new Set();
+        for (const doc of practicedDocs) {
+            doc.practicedQuestions.forEach(q => completedQuestionsSet.add(q.toString()));
+        }
+
+        const completedCount = completedQuestionsSet.size;
+        const percent = totalQuestions === 0 ? 0 : Math.round((completedCount / totalQuestions) * 100);
+
+        typeProgress[type] = `${percent}%`;
+        typeCounts[type] = {
+            total: totalQuestions,
+            completed: completedCount
+        };
+    }
+
+    // Mock test progress
+    const totalMockTests = await mock_testModel.countDocuments();
+    const completedMockTests = await practicedModel.distinct('completedMockTests', { user: userId }) || 0;
+
+    // Sectional mock test progress
+    const totalSectionalMockTests = await sectionalMockTestModel.countDocuments();
+    const completedSectionalTests = await practicedModel.distinct('completedSectionalTests', { user: userId }) || 0;
+
+    const progressData = {
+        typeProgress,
+        typeCounts,
+        mockTests: {
+            total: totalMockTests,
+            completed: completedMockTests.length
+        },
+        sectionalMockTests: {
+            total: totalSectionalMockTests,
+            completed: completedSectionalTests.length
+        }
+    };
+
+    res.status(200).json({
+        success: true,
+        data: progressData
+    });
+});

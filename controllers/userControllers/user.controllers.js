@@ -15,6 +15,7 @@ const notificationModel = require('../../models/notification.model');
 const practicedModel = require('../../models/practiced.model');
 const mock_testModel = require('../../models/mock_test.model');
 const sectionalMockTestModel = require('../../models/sectionalMockTest.model');
+const PaymentHistory = require('../../models/paymenthistory.model');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -427,4 +428,32 @@ module.exports.userProgress = asyncWrapper(async (req, res) => {
         data: progressData,
         userTarget: userSub.aiScoringLimit
     });
+});
+
+
+
+
+
+
+
+module.exports.userPaymentHistory = asyncWrapper(async (req, res) => {
+  const userId = req.user._id;
+
+  const history = await PaymentHistory.find({ user: userId })
+    .sort({ paymentDate: -1 }) // latest first
+    .lean();
+
+  if (!history || history.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: 'No payment history found.',
+      data: [],
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Payment history fetched successfully.',
+    data: history,
+  });
 });

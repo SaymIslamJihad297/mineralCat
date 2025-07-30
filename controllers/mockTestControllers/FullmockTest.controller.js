@@ -9,6 +9,7 @@ const ExpressError = require("../../utils/ExpressError");
 const mockTestResultModel = require("../../models/mockTestResult.model");
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const { default: mongoose } = require("mongoose");
+const practicedModel = require("../../models/practiced.model");
 
 const BACKENDURL = process.env.BACKENDURL;
 
@@ -453,6 +454,7 @@ module.exports.mockTestResult = async (req, res, next) => {
 
 module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
     const { mockTestId } = req.params;
+    const userId = req.user._id;
 
     if (!mongoose.Types.ObjectId.isValid(mockTestId)) {
         return res.status(400).json({ success: false, message: 'Invalid mock test ID' });
@@ -491,6 +493,12 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
         totalScore,
         testDate: new Date().toISOString()
     };
+
+    await practicedModel.updateOne(
+        { user: userId },
+        { $addToSet: { completedMockTests: mockTestId } },
+        { upsert: true }
+    );
 
     res.status(200).json({
         success: true,

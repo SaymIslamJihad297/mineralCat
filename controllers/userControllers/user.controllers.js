@@ -372,36 +372,43 @@ module.exports.userProgress = asyncWrapper(async (req, res) => {
     const typeCounts = {};
 
     for (const type of questionTypes) {
-        const totalQuestions = await questionModel.countDocuments({ type });
+        const subtypes = await questionModel.distinct('subtype', { type });
 
-        const practicedDocs = await practicedModel.find({ user: userId, questionType: type });
+        let totalQuestionsAll = 0;
+        let completedAll = 0;
 
-        let completedQuestionsSet = new Set();
-        for (const doc of practicedDocs) {
-            doc.practicedQuestions.forEach(q => completedQuestionsSet.add(q.toString()));
+        typeCounts[type] = {};
+
+        for (const subtype of subtypes) {
+            const totalQuestions = await questionModel.countDocuments({ type, subtype });
+
+            const practiceDoc = await practicedModel.findOne({ user: userId, questionType: type, subtype });
+            const completed = practiceDoc?.practicedQuestions?.length || 0;
+
+            totalQuestionsAll += totalQuestions;
+            completedAll += completed;
+
+            typeCounts[type][subtype] = {
+                total: totalQuestions,
+                completed
+            };
         }
 
-        const completedCount = completedQuestionsSet.size;
-        const percent = totalQuestions === 0 ? 0 : Math.round((completedCount / totalQuestions) * 100);
-
+        const percent = totalQuestionsAll === 0 ? 0 : Math.round((completedAll / totalQuestionsAll) * 100);
         typeProgress[type] = `${percent}%`;
-        typeCounts[type] = {
-            total: totalQuestions,
-            completed: completedCount
-        };
     }
 
-    // Mock test progress
+    // Mock Test Progress
     const totalMockTests = await mock_testModel.countDocuments();
-    const completedMockTests = await practicedModel.distinct('completedMockTests', { user: userId }) || 0;
+    const completedMockTests = await practicedModel.distinct('completedMockTests', { user: userId });
 
-    // Sectional mock test progress
+    // Sectional Mock Test Progress
     const totalSectionalMockTests = await sectionalMockTestModel.countDocuments();
-    const completedSectionalTests = await practicedModel.distinct('completedSectionalTests', { user: userId }) || 0;
+    const completedSectionalTests = await practicedModel.distinct('completedSectionalTests', { user: userId });
 
     const progressData = {
-        typeProgress,
-        typeCounts,
+        typeProgress, // e.g., speaking: "75%"
+        typeCounts,   // e.g., speaking: { repeat_sentence: { total, completed } }
         mockTests: {
             total: totalMockTests,
             completed: completedMockTests.length

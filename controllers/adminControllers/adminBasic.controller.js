@@ -176,16 +176,10 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
     let totalUsers = 0;
     let totalEarnings = 0;
 
-    let userCountByPlan = {
-        bronze: 0,
-        silver: 0,
-        gold: 0
-    };
-
-    let earningsByPlan = {
-        bronze: 0,
-        silver: 0,
-        gold: 0
+    let usersByPackage = {
+        bronze: { total_user: 0, total_earning: 0 },
+        silver: { total_user: 0, total_earning: 0 },
+        gold: { total_user: 0, total_earning: 0 }
     };
 
     let userList = [];
@@ -201,8 +195,8 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
         if (!plan || !planPrices[plan]) continue;
 
         totalUsers++;
-        userCountByPlan[plan]++;
-        earningsByPlan[plan] += planPrices[plan];
+        usersByPackage[plan].total_user++;
+        usersByPackage[plan].total_earning += planPrices[plan];
         totalEarnings += planPrices[plan];
 
         if (planType && planType.toLowerCase() === plan) {
@@ -220,9 +214,9 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
 
     res.status(200).json({
         totalUsers,
-        usersByPackage: userCountByPlan,
-        earningsByPackage: earningsByPlan,
-        totalEarnings,
+        usersByPackage,
+        totalEarnings: parseFloat(totalEarnings.toFixed(2)),
         ...(planType && { users: userList })
     });
 });
+

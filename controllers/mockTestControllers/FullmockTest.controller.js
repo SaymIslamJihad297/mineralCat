@@ -466,7 +466,6 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
 
     const results = mockTestResultDoc.results;
 
-    // Helper to find averageScore by type
     const getScore = (type) => {
         const result = results.find(r => r.type === type);
         return result ? result.averageScore || 0 : 0;

@@ -17,8 +17,6 @@ router.get('/getAll', isUserLoggedIn, getAllMockTests);
 
 router.post('/result-single-question', isUserLoggedIn, createUploadMiddleware(['.mp3', '.wav']).single('voice'), mockTestResult);
 
-router.get('/get-mock-test-result/:mockTestId', isUserLoggedIn, getFormattedMockTestResult);
+router.get('/get-mock-test-result/:mockTestId', isUserLoggedIn,checkLimit(['mock']), getFormattedMockTestResult);
 
 module.exports = router;
-
-//checkLimit(['mock'])

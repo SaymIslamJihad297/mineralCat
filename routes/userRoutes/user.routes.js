@@ -30,4 +30,7 @@ router.get('/notification', isUserLoggedIn, getNotifications)
     
 router.get('/get-unseen-notification-count', isUserLoggedIn, getUnseenNotificationCount);
 
+
+router.get('/user-progress', isUserLoggedIn, )
+
 module.exports = router;

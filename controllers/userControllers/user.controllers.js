@@ -361,3 +361,6 @@ module.exports.getUnseenNotificationCount = asyncWrapper(async (req, res) => {
 
 
 
+module.exports.userProgress = asyncWrapper(async(req, res)=>{
+  
+})

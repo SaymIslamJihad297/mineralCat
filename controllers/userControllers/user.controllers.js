@@ -174,23 +174,36 @@ module.exports.updateUser = asyncWrapper(async (req, res) => {
   const data = req.body;
   const user = req.user;
 
-  let result;
-  const folderName = 'userProfile'
+  const folderName = 'userProfile';
+  let updateFields = { ...data };
+
   if (req.file) {
-    result = await cloudinary.uploader.upload(req.file.path, {
-      resource_type: 'auto',
-      public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-      folder: `listening_test/${folderName}`,
-      type: 'authenticated',
-    })
+    try {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        resource_type: 'auto',
+        public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        folder: `listening_test/${folderName}`,
+        type: 'authenticated',
+      });
+
+      updateFields.profile = result.secure_url;
+
+      fs.unlinkSync(req.file.path);
+
+    } catch (err) {
+      console.error('Cloudinary upload failed:', err);
+      return res.status(500).json({ message: 'Image upload failed. Please try again.' });
+    }
   }
 
-  fs.unlinkSync(req.file.path);
+  const updatedUser = await userModels.findByIdAndUpdate(user._id, updateFields, { new: true }).select('-password');
 
-  const userData = await userModels.findByIdAndUpdate(user._id, { ...data, profile: result.secure_url }, { new: true }).select(['-password']);
-  return res.status(200).json({ user: userData });
+  res.status(200).json({
+    success: true,
+    message: 'User updated successfully',
+    user: updatedUser
+  });
 });
-
 
 module.exports.getAQuestion = asyncWrapper(async (req, res) => {
   const question = await questionModel.findById(req.params.id);

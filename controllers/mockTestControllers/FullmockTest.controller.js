@@ -506,7 +506,7 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
         return res.status(400).json({ success: false, message: 'Invalid mock test ID' });
     }
 
-    const mockTestResultDoc = await mockTestResultModel.findOne({ mockTest: mockTestId });
+    const mockTestResultDoc = await mockTestResultModel.findOne({ mockTest: mockTestId, user: userId });
 
     if (!mockTestResultDoc) {
         return res.status(404).json({ success: false, message: 'Mock test result not found' });

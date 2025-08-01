@@ -6,6 +6,7 @@ const { accessTokenAndRefreshTokenGenerator } = require("../../tokenGenerator");
 const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const ExpressError = require("../../utils/ExpressError");
 const { LoginFormValidator } = require("../../validations/schemaValidations");
+const notificationModel = require('../../models/notification.model');
 
 
 module.exports.getCounts = asyncWrapper(async (req, res) => {

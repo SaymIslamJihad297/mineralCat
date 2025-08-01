@@ -690,7 +690,7 @@ Please provide the following result in this format and Format your response as J
 {
     "Speaking": 0-1,
     "Listening": 0-1, 
-    "Enabling Skills": "[YES/NO]", 
+    "EnablingSkills": "[YES/NO]", 
     "Fluency": 0-1,
     "Pronunciation": 0-1 
 }

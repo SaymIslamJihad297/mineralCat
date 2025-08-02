@@ -7,7 +7,7 @@ const { default: axios } = require("axios");
 const fsPromises = require('fs').promises;
 const { OpenAI } = require('openai');
 
-async function evaluateMcqMultipleResult({ userId, questionId, selectedAnswers }) {
+async function evaluateMcqMultipleResult({ userId, questionId, answer }) {
   const question = await questionModel.findById(questionId).lean();
 
   if (!question || question.subtype !== 'mcq_multiple') {
@@ -15,7 +15,7 @@ async function evaluateMcqMultipleResult({ userId, questionId, selectedAnswers }
   }
 
   const correctAnswers = question.correctAnswers;
-  const score = selectedAnswers.filter(answer => correctAnswers.includes(answer)).length;
+  const score = answer.filter(a => correctAnswers.includes(a)).length;
   const feedback = `You scored ${score} out of ${correctAnswers.length}.`;
 
   await practicedModel.findOneAndUpdate(
@@ -28,21 +28,23 @@ async function evaluateMcqMultipleResult({ userId, questionId, selectedAnswers }
 }
 
 // MCQ Single result evaluator
-async function evaluateMcqSingleResult({ userId, questionId, userAnswer }) {
-  const question = await Question.findById(questionId).lean();
+async function evaluateMcqSingleResult({ userId, questionId, answer }) {
+  
+  const question = await questionModel.findById(questionId).lean();
   if (!question || question.subtype !== 'mcq_single') {
     throw new ExpressError(404, "Question not found or invalid type");
   }
-
-  const isCorrect = question.correctAnswers.includes(userAnswer);
+  
+  const isCorrect = question.correctAnswers.includes(answer);
 
   await practicedModel.findOneAndUpdate(
     { user: userId, questionType: question.type, subtype: question.subtype },
     { $addToSet: { practicedQuestions: question._id } },
     { upsert: true, new: true }
   );
+  const score = isCorrect ? 1 : 0;
 
-  return { isCorrect, message: isCorrect ? "Correct answer!" : "Incorrect answer!" };
+  return { isCorrect, message: isCorrect ? "Correct answer!" : "Incorrect answer!", score };
 }
 
 // Reading Fill in the Blanks result evaluator
@@ -74,16 +76,18 @@ async function evaluateReadingFillInTheBlanksResult({ userId, questionId, blanks
 }
 
 // Reorder Paragraphs result evaluator
-async function evaluateReorderParagraphsResult({ userId, questionId, userReorderedOptions }) {
+async function evaluateReorderParagraphsResult({ userId, questionId, answer }) {
   const question = await questionModel.findById(questionId).lean();
   if (!question || question.subtype !== 'reorder_paragraphs') {
     throw new ExpressError(404, "Question not found or invalid type");
   }
 
+  console.log(answer);
+  
   const correctAnswers = question.options;
   let score = 0;
 
-  userReorderedOptions.forEach((userAnswer, index) => {
+  answer.forEach((userAnswer, index) => {
     if (userAnswer === correctAnswers[index]) {
       score++;
     }
@@ -100,41 +104,41 @@ async function evaluateReorderParagraphsResult({ userId, questionId, userReorder
   return {
     score: totalScore,
     message: `You scored ${score} out of ${correctAnswers.length} points.`,
-    userAnswer: userReorderedOptions,
+    userAnswer: answer,
     correctAnswer: correctAnswers,
   };
 }
 
 
 // reading mcqsingle 
-async function evaluateMcqSingleResult({ userId, questionId, userAnswer }) {
-  const question = await questionModel.findById(questionId).lean();
+// async function evaluateMcqSingleResult({ userId, questionId, userAnswer }) {
+//   const question = await questionModel.findById(questionId).lean();
 
-  if (!question || question.subtype !== 'mcq_single') {
-    throw new ExpressError(404, "Question not found or invalid type");
-  }
+//   if (!question || question.subtype !== 'mcq_single') {
+//     throw new ExpressError(404, "Question not found or invalid type");
+//   }
 
-  const isCorrect = question.correctAnswers.includes(userAnswer);
-  const score = isCorrect ? 1 : 0;
+//   const isCorrect = question.correctAnswers.includes(userAnswer);
+//   const score = isCorrect ? 1 : 0;
 
-  await practicedModel.findOneAndUpdate(
-    {
-      user: userId,
-      questionType: question.type,
-      subtype: question.subtype
-    },
-    {
-      $addToSet: { practicedQuestions: question._id }
-    },
-    { upsert: true, new: true }
-  );
+//   await practicedModel.findOneAndUpdate(
+//     {
+//       user: userId,
+//       questionType: question.type,
+//       subtype: question.subtype
+//     },
+//     {
+//       $addToSet: { practicedQuestions: question._id }
+//     },
+//     { upsert: true, new: true }
+//   );
 
-  return {
-    isCorrect,
-    score,
-    message: isCorrect ? "Correct answer!" : "Incorrect answer!"
-  };
-}
+//   return {
+//     isCorrect,
+//     score,
+//     message: isCorrect ? "Correct answer!" : "Incorrect answer!"
+//   };
+// }
 
 // speaking ----------------------------------------------------------------------
 // ===============================================================================
@@ -406,7 +410,6 @@ async function speakingrespondToASituationResult({ req, res }) {
 
 module.exports = {
   evaluateMcqMultipleResult,
-  evaluateMcqSingleResult,
   evaluateReadingFillInTheBlanksResult,
   evaluateReorderParagraphsResult,
   evaluateMcqSingleResult,

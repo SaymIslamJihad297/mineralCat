@@ -280,7 +280,8 @@ module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
 module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
     const { questionId, answer } = req.body;
     const userId = req.user._id;
-    const result = await evaluateReadingFillInTheBlanksResult({userId, questionId, answer});
+    const blanks = answer;
+    const result = await evaluateReadingFillInTheBlanksResult({userId, questionId, blanks});
     
     res.status(200).json(result);
 });

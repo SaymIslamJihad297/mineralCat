@@ -312,10 +312,10 @@ module.exports.getAllSummarizeSpokenText = asyncWrapper(async (req, res) => {
 
 
 module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
-    const { questionId, userSummary } = req.body;
+    const { questionId, answer } = req.body;
 
-    if (!questionId || !userSummary) {
-        return res.status(400).json({ message: 'questionId and userSummary are required.' });
+    if (!questionId || !answer) {
+        return res.status(400).json({ message: 'questionId and answer are required.' });
     }
 
     try {
@@ -333,12 +333,12 @@ module.exports.summerizeSpokenTextResult = asyncWrapper(async (req, res) => {
             throw new Error('Could not extract transcript from API response');
         }
 
-        const chatGPTAssessment = await scoreWithChatGPT(originalTranscript, userSummary);
+        const chatGPTAssessment = await scoreWithChatGPT(originalTranscript, answer);
 
         const finalResult = {
 
             original_transcript: originalTranscript,
-            user_summary: userSummary,
+            user_summary: answer,
 
             summarize_text_score: chatGPTAssessment,
 
@@ -487,7 +487,7 @@ module.exports.getAllMultipleChoicesAndMultipleAnswers = asyncWrapper(async (req
 });
 
 module.exports.multipleChoicesAndMultipleAnswersResult = asyncWrapper(async (req, res) => {
-    const { questionId, selectedAnswers } = req.body;
+    const { questionId, answer } = req.body;
 
     const question = await questionsModel.findById(questionId);
     if (!question) {
@@ -500,7 +500,7 @@ module.exports.multipleChoicesAndMultipleAnswersResult = asyncWrapper(async (req
     const correctAnswers = question.correctAnswers;
     let score = 0;
 
-    selectedAnswers.forEach((userAnswer) => {
+    answer.forEach((userAnswer) => {
         if (correctAnswers.includes(userAnswer)) {
             score++;
         }
@@ -622,7 +622,7 @@ module.exports.getAllListeningFillInTheBlanks = asyncWrapper(async (req, res) =>
 
 
 module.exports.listeningFillInTheBlanksResult = asyncWrapper(async (req, res) => {
-    const { questionId, selectedAnswers } = req.body;
+    const { questionId, answer } = req.body;
 
     const question = await questionsModel.findById(questionId);
     if (!question) {
@@ -637,7 +637,7 @@ module.exports.listeningFillInTheBlanksResult = asyncWrapper(async (req, res) =>
 
     let score = 0;
 
-    selectedAnswers.forEach((userAnswer, index) => {
+    answer.forEach((userAnswer, index) => {
         const correctAnswer = blanks[index]?.correctAnswer;
 
         if (correctAnswer && correctAnswer === userAnswer) {
@@ -778,10 +778,10 @@ module.exports.getAllMultipleChoiceSingleAnswers = asyncWrapper(async (req, res)
 
 
 module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async (req, res) => {
-    const { questionId, selectedAnswers } = req.body;
+    const { questionId, answer } = req.body;
 
 
-    if (selectedAnswers.length > 1) {
+    if (answer.length > 1) {
         throw new ExpressError(401, "multiple answer is not allowed!");
     }
 
@@ -797,7 +797,7 @@ module.exports.multipleChoiceSingleAnswerResult = asyncWrapper(async (req, res) 
     const correctAnswers = question.correctAnswers;
     let score = 0;
 
-    selectedAnswers.forEach((userAnswer) => {
+    answer.forEach((userAnswer) => {
         if (correctAnswers.includes(userAnswer)) {
             score++;
         }

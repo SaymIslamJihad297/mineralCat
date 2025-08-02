@@ -73,10 +73,10 @@ module.exports.getSummarizeWrittenText = asyncWrapper(async (req, res) => {
 })
 module.exports.summarizeWrittenTextResult = asyncWrapper(async (req, res) => {
 
-    const { questionId, userSummary } = req.body;
+    const { questionId, answer } = req.body;
 
-    if (!questionId || !userSummary) {
-        throw new ExpressError(400, "questionId and userSummary are required!");
+    if (!questionId || !answer) {
+        throw new ExpressError(400, "questionId and answer are required!");
     }
 
     const question = await questionsModel.findById(questionId);
@@ -98,7 +98,7 @@ Original Paragraph:
 ${originalParagraph}
 
 User's Summary: 
-${userSummary}
+${answer}
 
 Please evaluate the user's summary and provide a score out of 7 in the following categories:
 - Content (0–2)
@@ -248,10 +248,10 @@ module.exports.getWriteEmail = asyncWrapper(async (req, res) => {
 })
 
 module.exports.writeEmailResult = asyncWrapper(async (req, res) => {
-    const { questionId, email } = req.body;
+    const { questionId, answer } = req.body;
 
-    if (!questionId || !email) {
-        throw new ExpressError(400, "questionId and email are required!");
+    if (!questionId || !answer) {
+        throw new ExpressError(400, "questionId and answer are required!");
     }
 
     const question = await questionsModel.findById(questionId);
@@ -271,7 +271,7 @@ Original Email Template:
 ${originalEmailTemplate}
 
 User's Email: 
-${email}
+${answer}
 
 Please evaluate the user's email and provide a score out of 15 in the following categories:
 - Content (0–3)

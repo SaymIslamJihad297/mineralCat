@@ -121,9 +121,9 @@ module.exports.editMcqMultiple = asyncWrapper(async (req, res) => {
 });
 
 module.exports.mcqMultipleChoiceResult = asyncWrapper(async (req, res) => {
-    const { questionId, selectedAnswers } = req.body;
+    const { questionId, answer } = req.body;
     const userId = req.user._id;
-    const result = await evaluateMcqMultipleResult({userId, questionId, selectedAnswers});
+    const result = await evaluateMcqMultipleResult({userId, questionId, answer});
 
     res.json(result);
 });
@@ -199,10 +199,10 @@ module.exports.editMcqSingle = asyncWrapper(async (req, res) => {
 });
 
 module.exports.mcqSingleResult = asyncWrapper(async (req, res) => {
-    const { questionId, userAnswer } = req.body;
+    const { questionId, answer } = req.body;
 
     const userId = req.user._id;
-    const result = await evaluateMcqSingleResult({userId, questionId, userAnswer});
+    const result = await evaluateMcqSingleResult({userId, questionId, answer});
 
     res.json(result);
 });
@@ -278,9 +278,9 @@ module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
 
 
 module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
-    const { questionId, blanks } = req.body;
+    const { questionId, answer } = req.body;
     const userId = req.user._id;
-    const result = await evaluateReadingFillInTheBlanksResult({userId, questionId, blanks});
+    const result = await evaluateReadingFillInTheBlanksResult({userId, questionId, answer});
     
     res.status(200).json(result);
 });
@@ -384,10 +384,10 @@ module.exports.getAReorderParagraph = asyncWrapper(async (req, res) => {
 });
 
 module.exports.reorderParagraphsResult = asyncWrapper(async (req, res) => {
-    const { questionId, userReorderedOptions } = req.body;
+    const { questionId, answer } = req.body;
 
     const userId = req.user._id;
-    const result = await evaluateReorderParagraphsResult({userId, questionId, userReorderedOptions});
+    const result = await evaluateReorderParagraphsResult({userId, questionId, answer});
 
     res.status(200).json(result);
 });

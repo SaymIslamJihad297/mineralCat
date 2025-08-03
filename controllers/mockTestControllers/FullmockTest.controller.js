@@ -151,9 +151,9 @@ module.exports.getAllMockTests = async (req, res) => {
 };
 
 module.exports.mockTestResult = async (req, res, next) => {
+    const userId = req.user?._id;
     try {
         const { questionId, mockTestId } = req.body;
-        const userId = req.user._id;
 
         console.log("User id is : ", userId);
         

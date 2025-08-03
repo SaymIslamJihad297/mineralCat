@@ -18,6 +18,8 @@ const sectionalMockTestModel = require('../../models/sectionalMockTest.model');
 const PaymentHistory = require('../../models/paymenthistory.model');
 const blackListedTokenModel = require('../../models/blackListedToken.model');
 const bcrypt = require('bcryptjs');
+const NodeCache = require('node-cache');
+const cache = new NodeCache({ stdTTL: 60 * 5 });
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -208,11 +210,11 @@ module.exports.updateUser = asyncWrapper(async (req, res) => {
     }
 
     if (data.password.length < 8) {
-    return res.status(400).json({
-      success: false,
-      message: 'Password must be at least 8 characters long.',
-    });
-  }
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long.',
+      });
+    }
 
     const dbUser = await userModels.findById(user._id);
 
@@ -412,7 +414,17 @@ module.exports.getUnseenNotificationCount = asyncWrapper(async (req, res) => {
 
 
 module.exports.userProgress = asyncWrapper(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user._id.toString();
+
+  const cachedData = cache.get(userId);
+  if (cachedData) {
+    return res.status(200).json({
+      success: true,
+      data: cachedData.data,
+      userTarget: cachedData.userTarget,
+      cached: true,
+    });
+  }
 
   const questionTypes = ['speaking', 'writing', 'reading', 'listening'];
   const typeProgress = {};
@@ -428,53 +440,44 @@ module.exports.userProgress = asyncWrapper(async (req, res) => {
 
     for (const subtype of subtypes) {
       const totalQuestions = await questionModel.countDocuments({ type, subtype });
-
       const practiceDoc = await practicedModel.findOne({ user: userId, questionType: type, subtype });
       const completed = practiceDoc?.practicedQuestions?.length || 0;
 
       totalQuestionsAll += totalQuestions;
       completedAll += completed;
 
-      typeCounts[type][subtype] = {
-        total: totalQuestions,
-        completed
-      };
+      typeCounts[type][subtype] = { total: totalQuestions, completed };
     }
 
     const percent = totalQuestionsAll === 0 ? 0 : Math.round((completedAll / totalQuestionsAll) * 100);
     typeProgress[type] = `${percent}%`;
   }
 
-  // Mock Test Progress
   const totalMockTests = await mock_testModel.countDocuments();
   const completedMockTests = await practicedModel.distinct('completedMockTests', { user: userId });
 
-  // Sectional Mock Test Progress
   const totalSectionalMockTests = await sectionalMockTestModel.countDocuments();
   const completedSectionalTests = await practicedModel.distinct('completedSectionalTests', { user: userId });
+
+  const userSub = await supscriptionModel.findOne({ user: userId });
 
   const progressData = {
     typeProgress,
     typeCounts,
-    mockTests: {
-      total: totalMockTests,
-      completed: completedMockTests.length
-    },
-    sectionalMockTests: {
-      total: totalSectionalMockTests,
-      completed: completedSectionalTests.length
-    }
+    mockTests: { total: totalMockTests, completed: completedMockTests.length },
+    sectionalMockTests: { total: totalSectionalMockTests, completed: completedSectionalTests.length }
   };
 
-  const userSub = await supscriptionModel.findOne({ user: userId });
-
+  cache.set(userId, { data: progressData, userTarget: userSub.aiScoringLimit });
 
   res.status(200).json({
     success: true,
     data: progressData,
-    userTarget: userSub.aiScoringLimit
+    userTarget: userSub.aiScoringLimit,
+    cached: false,
   });
 });
+
 
 
 

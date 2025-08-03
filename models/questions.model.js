@@ -82,7 +82,7 @@ QuestionSchema.pre('save', async function (next) {
 
 
 
-QuestionSchema.index({ subtype: 1 });
+QuestionSchema.index({ type: 1, subtype: 1 });
 QuestionSchema.index({ createdAt: -1 });
 QuestionSchema.index({ subtype: 1, createdAt: -1 });
 

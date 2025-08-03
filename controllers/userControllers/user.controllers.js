@@ -17,6 +17,7 @@ const mock_testModel = require('../../models/mock_test.model');
 const sectionalMockTestModel = require('../../models/sectionalMockTest.model');
 const PaymentHistory = require('../../models/paymenthistory.model');
 const blackListedTokenModel = require('../../models/blackListedToken.model');
+const bcrypt = require('bcryptjs');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -196,6 +197,37 @@ module.exports.updateUser = asyncWrapper(async (req, res) => {
       return res.status(500).json({ message: 'Image upload failed. Please try again.' });
     }
   }
+
+  // Handle password change
+  if (data.password) {
+    if (!data.oldPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Old password is required to set a new password.',
+      });
+    }
+
+    if (data.password.length < 8) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 8 characters long.',
+    });
+  }
+
+    const dbUser = await userModels.findById(user._id);
+
+    const isMatch = await bcrypt.compare(data.oldPassword, dbUser.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Old password is incorrect.',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    updateFields.password = hashedPassword;
+  }
+
 
   const updatedUser = await userModels.findByIdAndUpdate(user._id, updateFields, { new: true }).select('-password');
 
@@ -380,68 +412,68 @@ module.exports.getUnseenNotificationCount = asyncWrapper(async (req, res) => {
 
 
 module.exports.userProgress = asyncWrapper(async (req, res) => {
-    const userId = req.user._id;
+  const userId = req.user._id;
 
-    const questionTypes = ['speaking', 'writing', 'reading', 'listening'];
-    const typeProgress = {};
-    const typeCounts = {};
+  const questionTypes = ['speaking', 'writing', 'reading', 'listening'];
+  const typeProgress = {};
+  const typeCounts = {};
 
-    for (const type of questionTypes) {
-        const subtypes = await questionModel.distinct('subtype', { type });
+  for (const type of questionTypes) {
+    const subtypes = await questionModel.distinct('subtype', { type });
 
-        let totalQuestionsAll = 0;
-        let completedAll = 0;
+    let totalQuestionsAll = 0;
+    let completedAll = 0;
 
-        typeCounts[type] = {};
+    typeCounts[type] = {};
 
-        for (const subtype of subtypes) {
-            const totalQuestions = await questionModel.countDocuments({ type, subtype });
+    for (const subtype of subtypes) {
+      const totalQuestions = await questionModel.countDocuments({ type, subtype });
 
-            const practiceDoc = await practicedModel.findOne({ user: userId, questionType: type, subtype });
-            const completed = practiceDoc?.practicedQuestions?.length || 0;
+      const practiceDoc = await practicedModel.findOne({ user: userId, questionType: type, subtype });
+      const completed = practiceDoc?.practicedQuestions?.length || 0;
 
-            totalQuestionsAll += totalQuestions;
-            completedAll += completed;
+      totalQuestionsAll += totalQuestions;
+      completedAll += completed;
 
-            typeCounts[type][subtype] = {
-                total: totalQuestions,
-                completed
-            };
-        }
-
-        const percent = totalQuestionsAll === 0 ? 0 : Math.round((completedAll / totalQuestionsAll) * 100);
-        typeProgress[type] = `${percent}%`;
+      typeCounts[type][subtype] = {
+        total: totalQuestions,
+        completed
+      };
     }
 
-    // Mock Test Progress
-    const totalMockTests = await mock_testModel.countDocuments();
-    const completedMockTests = await practicedModel.distinct('completedMockTests', { user: userId });
+    const percent = totalQuestionsAll === 0 ? 0 : Math.round((completedAll / totalQuestionsAll) * 100);
+    typeProgress[type] = `${percent}%`;
+  }
 
-    // Sectional Mock Test Progress
-    const totalSectionalMockTests = await sectionalMockTestModel.countDocuments();
-    const completedSectionalTests = await practicedModel.distinct('completedSectionalTests', { user: userId });
+  // Mock Test Progress
+  const totalMockTests = await mock_testModel.countDocuments();
+  const completedMockTests = await practicedModel.distinct('completedMockTests', { user: userId });
 
-    const progressData = {
-        typeProgress,
-        typeCounts,
-        mockTests: {
-            total: totalMockTests,
-            completed: completedMockTests.length
-        },
-        sectionalMockTests: {
-            total: totalSectionalMockTests,
-            completed: completedSectionalTests.length
-        }
-    };
+  // Sectional Mock Test Progress
+  const totalSectionalMockTests = await sectionalMockTestModel.countDocuments();
+  const completedSectionalTests = await practicedModel.distinct('completedSectionalTests', { user: userId });
 
-    const userSub = await supscriptionModel.findOne({user: userId});
-    
+  const progressData = {
+    typeProgress,
+    typeCounts,
+    mockTests: {
+      total: totalMockTests,
+      completed: completedMockTests.length
+    },
+    sectionalMockTests: {
+      total: totalSectionalMockTests,
+      completed: completedSectionalTests.length
+    }
+  };
 
-    res.status(200).json({
-        success: true,
-        data: progressData,
-        userTarget: userSub.aiScoringLimit
-    });
+  const userSub = await supscriptionModel.findOne({ user: userId });
+
+
+  res.status(200).json({
+    success: true,
+    data: progressData,
+    userTarget: userSub.aiScoringLimit
+  });
 });
 
 

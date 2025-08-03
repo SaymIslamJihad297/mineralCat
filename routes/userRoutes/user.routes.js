@@ -1,5 +1,5 @@
 const { forgetPassword, verifyOtp, resetPassword } = require('../../controllers/userControllers/otpController');
-const { userInfo, updateUser, getAQuestion, addToBookmark, getBookMark, addNotification, getNotifications, getUnseenNotificationCount, userProgress, userPaymentHistory } = require('../../controllers/userControllers/user.controllers');
+const { userInfo, updateUser, getAQuestion, addToBookmark, getBookMark, addNotification, getNotifications, getUnseenNotificationCount, userProgress, userPaymentHistory, logout } = require('../../controllers/userControllers/user.controllers');
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 const createUploadMiddleware = require('../../middleware/upload');
 
@@ -34,5 +34,7 @@ router.get('/get-unseen-notification-count', isUserLoggedIn, getUnseenNotificati
 router.get('/user-progress', isUserLoggedIn, userProgress);
 
 router.get('/user-payment-history', isUserLoggedIn, userPaymentHistory);
+
+router.post('/logout', isUserLoggedIn, logout);
 
 module.exports = router;

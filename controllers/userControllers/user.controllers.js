@@ -16,6 +16,7 @@ const practicedModel = require('../../models/practiced.model');
 const mock_testModel = require('../../models/mock_test.model');
 const sectionalMockTestModel = require('../../models/sectionalMockTest.model');
 const PaymentHistory = require('../../models/paymenthistory.model');
+const blackListedTokenModel = require('../../models/blackListedToken.model');
 
 module.exports.signUpUser = asyncWrapper(async (req, res) => {
   const { error, value } = userSchemaValidator.validate(req.body);
@@ -470,3 +471,22 @@ module.exports.userPaymentHistory = asyncWrapper(async (req, res) => {
     data: history,
   });
 });
+
+
+
+module.exports.logout = async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader?.split(' ')[1];
+
+  if (!token) return res.status(400).json({ message: 'No token provided' });
+
+  const decoded = jwt.decode(token);
+  const expiry = new Date(decoded.exp * 1000);
+
+  await blackListedTokenModel.create({
+    token,
+    expiresAt: expiry,
+  });
+
+  res.status(200).json({ message: 'Successfully logged out' });
+};

@@ -1,16 +1,21 @@
 const jwt = require('jsonwebtoken');
 const ExpressError = require('../utils/ExpressError');
+const blackListedTokenModel = require('../models/blackListedToken.model');
 
-module.exports.isUserLoggedIn = (req, res, next) => {
+module.exports.isUserLoggedIn = async(req, res, next) => {
   const authHeader = req.headers['authorization'];
   if (!authHeader) {
     return res.status(401).json({ message: "Access Token Missing" });
   }
 
-  // Extract token by removing "Bearer " prefix
   const token = authHeader.split(' ')[1];
   if (!token) {
     return res.status(401).json({ message: "Access Token Missing" });
+  }
+
+  const blacklisted = await blackListedTokenModel.findOne({ token });
+  if (blacklisted) {
+    return res.status(403).json({ message: 'Token is blacklisted' });
   }
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {

@@ -225,6 +225,11 @@ module.exports.mockTestResult = async (req, res, next) => {
         const { questionId, mockTestId } = req.body;
         const userId = req.user._id;
 
+        if(req.file){
+            console.log(req.file.path);
+            
+        }
+
         if (!questionId || !mockTestId)
             throw new ExpressError(400, 'questionId and mockTestId are required');
 

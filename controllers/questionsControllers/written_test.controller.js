@@ -338,8 +338,6 @@ Feedback: Your feedback goes here
         temperature: 0.7,
     });
 
-    // console.log("GPT Response:", gptResponse.choices[0].message.content);
-
     const gptResult = gptResponse.choices[0].message.content;
     const parsedResult = parseGPTResponseForWriteEmail(gptResult);
 

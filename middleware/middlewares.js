@@ -18,7 +18,7 @@ module.exports.isUserLoggedIn = (req, res, next) => {
       return res.status(403).json({ message: "Invalid or expired token" });
     }
 
-    req.user = decoded; // attach decoded payload to req.user
+    req.user = decoded;
     next();
   });
 };

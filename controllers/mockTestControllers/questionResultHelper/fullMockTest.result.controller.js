@@ -192,30 +192,6 @@ const detectAudioFormat = (audioUrl, contentType) => {
   return 'mp3';
 };
 
-const extractTranscript = (apiResponse) => {
-  try {
-    if (apiResponse.vocabulary?.feedback?.tagged_transcript) {
-      return apiResponse.vocabulary.feedback.tagged_transcript;
-    }
-
-    if (apiResponse.fluency?.feedback?.tagged_transcript) {
-      return apiResponse.fluency.feedback.tagged_transcript
-        .replace(/<discourse-marker[^>]*>(.*?)<\/discourse-marker>/g, '$1')
-        .replace(/<[^>]*>/g, '')
-        .trim();
-    }
-
-    if (apiResponse.metadata?.predicted_text) {
-      return apiResponse.metadata.predicted_text;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error extracting transcript:', error);
-    return null;
-  }
-};
-
 async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, accent) {
   const data = JSON.stringify({
     "audio_base64": audioBase64,

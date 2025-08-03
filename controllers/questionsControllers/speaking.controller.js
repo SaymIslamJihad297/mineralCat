@@ -65,37 +65,6 @@ async function uploadToCloudinary(file, folderName) {
     return result.secure_url;
 }
 
-const downloadAndSaveAudio = async (audioUrl) => {
-    return new Promise((resolve, reject) => {
-        const fileName = path.basename(audioUrl);
-        const filePath = path.join('downloads', fileName);
-
-        if (!fs.existsSync('downloads')) {
-            fs.mkdirSync('downloads');
-        }
-
-        const fileStream = fs.createWriteStream(filePath);
-
-        https.get(audioUrl, (response) => {
-            if (response.statusCode !== 200) {
-                reject(new Error(`Failed to download audio: ${response.statusCode}`));
-                return;
-            }
-
-            response.pipe(fileStream);
-
-            fileStream.on('finish', () => {
-                resolve(filePath);
-            });
-
-            fileStream.on('error', (err) => {
-                reject(new Error('Error saving audio file: ' + err.message));
-            });
-        }).on('error', (err) => {
-            reject(new Error('Request error: ' + err.message));
-        });
-    });
-};
 
 const detectAudioFormat = (audioUrl, contentType) => {
     const extension = path.extname(audioUrl).toLowerCase();
@@ -106,30 +75,6 @@ const detectAudioFormat = (audioUrl, contentType) => {
     if (extension === '.ogg' || contentType?.includes('ogg')) return 'ogg';
 
     return 'mp3';
-};
-
-const extractTranscript = (apiResponse) => {
-    try {
-        if (apiResponse.vocabulary?.feedback?.tagged_transcript) {
-            return apiResponse.vocabulary.feedback.tagged_transcript;
-        }
-
-        if (apiResponse.fluency?.feedback?.tagged_transcript) {
-            return apiResponse.fluency.feedback.tagged_transcript
-                .replace(/<discourse-marker[^>]*>(.*?)<\/discourse-marker>/g, '$1')
-                .replace(/<[^>]*>/g, '')
-                .trim();
-        }
-
-        if (apiResponse.metadata?.predicted_text) {
-            return apiResponse.metadata.predicted_text;
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Error extracting transcript:', error);
-        return null;
-    }
 };
 
 async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, accent) {
@@ -175,18 +120,12 @@ async function addQuestion(validator, data, userId, audioFile = null, folderName
     };
 
     if (audioFile && convertToText === true) {
-        const audioFilePath = audioFile.path;
-        const userFileBase64 = readFileAsBase64(audioFilePath);
-        const audioFormat = detectAudioFormat(audioFilePath);
-        const expectedText = "sdfsdfsfsdff"
-
-        const response = await callSpeechAssessmentAPI(
-            userFileBase64,
-            audioFormat,
-            expectedText,
-            'us'
-        );
-        const ConvertedText = extractTranscript(response);
+        const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(audioFile.path),
+            model: 'whisper-1',
+            response_format: 'text',
+        });
+        const ConvertedText = transcription;
         questionData.audioConvertedText = ConvertedText;
     }
     if (audioFile && folderName) {
@@ -197,16 +136,29 @@ async function addQuestion(validator, data, userId, audioFile = null, folderName
     return newQuestion;
 }
 
-async function editQuestion(validator, questionId, data, userId, audioFile = null, folderName = null) {
+async function editQuestion(validator, questionId, data, userId, audioFile = null, folderName = null, convertToText = false) {
     const { error, value } = validator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
     if (!questionId) throw new ExpressError(400, "Question ID is required");
 
+    if (audioFile && folderName && convertToText) {
+        // Get transcription using Whisper
+        const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(audioFile.path),
+            model: 'whisper-1',
+            response_format: 'text',
+        });
+
+        value.audioConvertedText = transcription;
+    }
     if (audioFile && folderName) {
-        value.audioUrl = await uploadToCloudinary(audioFile, folderName);
+        // Upload to Cloudinary
+        const audioUrl = await uploadToCloudinary(audioFile, folderName);
+        value.audioUrl = audioUrl;
     }
 
+    // Update the DB
     const question = await questionsModel.findByIdAndUpdate(
         questionId,
         { ...value, createdBy: userId },
@@ -215,74 +167,6 @@ async function editQuestion(validator, questionId, data, userId, audioFile = nul
 
     if (!question) throw new ExpressError('Question not found', 404);
     return question;
-}
-
-async function getAllQuestions(subtype, page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
-
-    const questions = await questionsModel.find({ subtype })
-        .limit(limit)
-        .skip(skip)
-        .sort({ createdAt: -1 });
-
-    if (!questions) throw new ExpressError('No question found', 404);
-
-    const questionsCount = await questionsModel.countDocuments({ subtype });
-    return { questions, questionsCount };
-}
-
-async function handleSpeechAssessment(req, res, expectedSubtype, useDirectPrompt = true) {
-    const { questionId, accent = 'us', format } = req.body;
-    let userFilePath = req.file?.path;
-
-    try {
-        if (!questionId) throw new ExpressError(400, "questionId is required!");
-        if (!req.file) throw new ExpressError(400, "voice is required!");
-
-        const question = await questionsModel.findById(questionId);
-        if (!question) {
-            throw new ExpressError(404, "Question not found!");
-        }
-
-        if (question.subtype !== expectedSubtype) {
-            throw new ExpressError(401, "this is not valid questionType for this route!");
-        }
-
-        const userFileBase64 = readFileAsBase64(userFilePath);
-        const audioFormat = format || detectAudioFormat(userFilePath);
-
-        const expectedText = useDirectPrompt ? question.prompt : question.prompt;
-
-        const response = await callSpeechAssessmentAPI(
-            userFileBase64,
-            audioFormat,
-            expectedText,
-            accent
-        );
-
-        await safeDeleteFile(userFilePath);
-
-        await practicedModel.findOneAndUpdate(
-            {
-                user: req.user._id,
-                questionType: question.type,
-                subtype: question.subtype
-            },
-            {
-                $addToSet: { practicedQuestions: question._id }
-            },
-            { upsert: true, new: true }
-        );
-
-        return res.status(200).json({
-            success: true,
-            data: response
-        });
-
-    } catch (error) {
-        await safeDeleteFile(userFilePath);
-        throw error;
-    }
 }
 
 // ============================================================
@@ -343,14 +227,14 @@ module.exports.editReadAloud = asyncWrapper(async (req, res) => {
 
 module.exports.getAllReadAloud = asyncWrapper(async (req, res) => {
     let query = req.query.query;
-    if(!query) query = 'all';
+    if (!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'read_aloud', page, limit, req, res);
 });
 
 module.exports.readAloudResult = asyncWrapper(async (req, res) => {
-    await speakingReadAloudResult({req, res});
+    await speakingReadAloudResult({ req, res });
 });
 
 // ============================================================
@@ -416,7 +300,7 @@ module.exports.editRepeatSentence = asyncWrapper(async (req, res) => {
 
 module.exports.getAllRepeatSentence = asyncWrapper(async (req, res) => {
     let query = req.query.query;
-    if(!query) query = 'all';
+    if (!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'repeat_sentence', page, limit, req, res);
@@ -428,7 +312,7 @@ module.exports.repeatSentenceResult = asyncWrapper(async (req, res) => {
     let userFilePath = req.file?.path;
     const userId = req.user._id;
 
-    const result = await speakingevaluateRepeatSentenceResult({userId, questionId, userFilePath, accent});
+    const result = await speakingevaluateRepeatSentenceResult({ userId, questionId, userFilePath, accent });
 
     res.status(200).json(result);
 });
@@ -544,7 +428,7 @@ module.exports.editRespondToASituation = asyncWrapper(async (req, res) => {
 
 module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
     let query = req.query.query;
-    if(!query) query = 'all';
+    if (!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'respond_to_situation', page, limit, req, res);
@@ -553,7 +437,7 @@ module.exports.getAllRespondToASituation = asyncWrapper(async (req, res) => {
 
 module.exports.respondToASituationResult = asyncWrapper(async (req, res) => {
 
-    speakingrespondToASituationResult({req, res});
+    speakingrespondToASituationResult({ req, res });
 });
 
 // ============================================================
@@ -611,7 +495,8 @@ module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
         data,
         req.user._id,
         req.file,
-        'answerShortQuestion'
+        'answerShortQuestion',
+        true,
     );
 
     return res.status(200).json({
@@ -622,7 +507,7 @@ module.exports.editAnswerShortQuestion = asyncWrapper(async (req, res) => {
 
 module.exports.getAllAnswerShortQuestion = asyncWrapper(async (req, res) => {
     let query = req.query.query;
-    if(!query) query = 'all';
+    if (!query) query = 'all';
     const { page, limit } = req.query;
 
     getQuestionByQuery(query, 'answer_short_question', page, limit, req, res);
@@ -641,19 +526,15 @@ module.exports.answerShortQuestionResult = asyncWrapper(async (req, res) => {
         const question = await questionsModel.findById(questionId);
         if (!question) throw new ExpressError(404, "Question Not Found!");
 
-        const userfileBase64 = readFileAsBase64(userFilePath);
         const mainAudioText = question.audioConvertedText;
-        const finalFormat = detectAudioFormat(userFilePath);
+         const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(req.file.path),
+            model: 'whisper-1',
+            response_format: 'text',
+        });
 
-        const finalResponse = await callSpeechAssessmentAPI(
-            userfileBase64,
-            finalFormat,
-            "sdfsdfsty",
-            accent
-        );
 
-        
-        const userText = extractTranscript(finalResponse);
+        const userText = transcription;
 
         await safeDeleteFile(userFilePath);
         userFilePath = null;
@@ -686,7 +567,7 @@ Please evaluate the user's response in the following categories:
 5. **Pronunciation**: Evaluate how well the user pronounces words, including clarity and accuracy.
    - Score pronunciation out of 1.
 
-Please provide the following result in this format and Format your response as JSON:
+Please provide the following result in this format and Format your response as JSON it must be just like this i will use that directly to send as response so please give me as this as json :
 {
     "Speaking": 0-1,
     "Listening": 0-1, 

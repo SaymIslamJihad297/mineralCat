@@ -15,96 +15,6 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 // helper functions
-function readFileAsBase64(filePath) {
-    try {
-        const fileBuffer = fs.readFileSync(filePath);
-        return fileBuffer.toString('base64');
-    } catch (readError) {
-        console.error("Failed to read file from disk:", readError);
-        throw new ExpressError(500, "Failed to read file from disk: " + readError.message);
-    }
-}
-const downloadAndEncodeAudio = async (audioUrl) => {
-    return new Promise((resolve, reject) => {
-
-        https.get(audioUrl, (response) => {
-            if (response.statusCode !== 200) {
-                reject(new Error(`Failed to download audio: ${response.statusCode}`));
-                return;
-            }
-
-            let data = [];
-            let totalLength = 0;
-
-            response.on('data', (chunk) => {
-                data.push(chunk);
-                totalLength += chunk.length;
-
-                if (totalLength > 10 * 1024 * 1024) {
-                    reject(new Error('Audio file too large (>10MB)'));
-                    return;
-                }
-            });
-
-            response.on('end', () => {
-                try {
-                    const audioBuffer = Buffer.concat(data);
-                    const audioBase64 = audioBuffer.toString('base64');
-
-                    resolve({
-                        base64: audioBase64,
-                        size: totalLength,
-                        contentType: response.headers['content-type'] || 'audio/mpeg'
-                    });
-                } catch (error) {
-                    reject(new Error('Failed to encode audio to base64: ' + error.message));
-                }
-            });
-
-            response.on('error', (err) => {
-                reject(new Error('Download error: ' + err.message));
-            });
-        }).on('error', (err) => {
-            reject(new Error('Request error: ' + err.message));
-        });
-    });
-};
-
-const detectAudioFormat = (audioUrl, contentType) => {
-    const extension = path.extname(audioUrl).toLowerCase();
-
-    if (extension === '.mp3' || contentType?.includes('mpeg')) return 'mp3';
-    if (extension === '.wav' || contentType?.includes('wav')) return 'wav';
-    if (extension === '.m4a' || contentType?.includes('m4a')) return 'm4a';
-    if (extension === '.ogg' || contentType?.includes('ogg')) return 'ogg';
-
-    return 'mp3';
-};
-
-// Function to extract clean transcript from API response
-const extractTranscript = (apiResponse) => {
-    try {
-        if (apiResponse.vocabulary?.feedback?.tagged_transcript) {
-            return apiResponse.vocabulary.feedback.tagged_transcript;
-        }
-
-        if (apiResponse.fluency?.feedback?.tagged_transcript) {
-            return apiResponse.fluency.feedback.tagged_transcript
-                .replace(/<discourse-marker[^>]*>(.*?)<\/discourse-marker>/g, '$1')
-                .replace(/<[^>]*>/g, '')
-                .trim();
-        }
-
-        if (apiResponse.metadata?.predicted_text) {
-            return apiResponse.metadata.predicted_text;
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Error extracting transcript:', error);
-        return null;
-    }
-};
 
 const scoreWithChatGPT = async (originalTranscript, userSummary) => {
     try {
@@ -168,38 +78,6 @@ Format your response as JSON:
         throw new Error('Failed to get ChatGPT assessment: ' + error.message);
     }
 };
-async function callSpeechAssessmentAPI(audioBase64, audioFormat, expectedText, accent) {
-    const data = JSON.stringify({
-        "audio_base64": audioBase64,
-        "audio_format": audioFormat,
-        "expected_text": expectedText,
-    });
-
-    const config = {
-        method: 'post',
-        maxBodyLength: Infinity,
-        url: `${process.env.LANGUAGE_CONFIDENCE_BASE_URL}/speech-assessment/scripted/${accent}`,
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'api-key': process.env.LANGUAGE_CONFIDENCE_SECONDARY_API,
-        },
-        data: data
-    };
-
-    try {
-        const response = await axios.request(config);
-        return response.data;
-    } catch (error) {
-        console.error("Error from Language Confidence API:", error.response ? error.response.data : error.message);
-
-        const errorMessage = error.response
-            ? JSON.stringify(error.response.data)
-            : error.message;
-
-        throw new ExpressError(500, "Error assessing speech: " + errorMessage);
-    }
-}
 
 // --------------------------summarization spoken text-------------------------
 module.exports.addSummarizeSpokenText = asyncWrapper(async (req, res) => {
@@ -234,18 +112,12 @@ module.exports.addSummarizeSpokenText = asyncWrapper(async (req, res) => {
         type: 'authenticated',
     })
 
-    const audioFilePath = req.file.path;
-    const userFileBase64 = readFileAsBase64(audioFilePath);
-    const audioFormat = detectAudioFormat(audioFilePath);
-    const expectedText = "sdfsdfsfsdff"
-
-    const response = await callSpeechAssessmentAPI(
-        userFileBase64,
-        audioFormat,
-        expectedText,
-        'us'
-    );
-    const ConvertedText = extractTranscript(response);
+    const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(req.file.path),
+        model: 'whisper-1',
+        response_format: 'text',
+    });
+    const ConvertedText = transcription;
 
     fs.unlinkSync(req.file.path);
 
@@ -273,25 +145,39 @@ module.exports.editSummarizeSpokenText = asyncWrapper(async (req, res) => {
     if ((newData.type && newData.type != 'listening') || (newData.subtype && newData.subtype != 'summarize_spoken_text')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
     }
+
     const { questionId, ...data } = newData;
+
+    if (!questionId) throw new ExpressError(400, "Question ID is required");
+
     // Validate incoming data (excluding questionId)
     const { error, value } = editSummarizeSpokenTextSchemaValidator.validate(data);
     if (error) throw new ExpressError(400, error.details[0].message);
 
-    if (!questionId) throw new ExpressError(400, "Question ID is required");
-
     if (req.file !== undefined) {
         const folderName = 'summarizeSpokenText';
+
+        // Upload to Cloudinary
         const result = await cloudinary.uploader.upload(req.file.path, {
             resource_type: 'auto',
             public_id: `${path.basename(req.file.originalname, path.extname(req.file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
             folder: `listening_test/${folderName}`,
             type: 'authenticated',
-        })
+        });
 
-        fs.unlinkSync(req.file.path);
+        // Get transcription from Whisper
+        const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(req.file.path),
+            model: 'whisper-1',
+            response_format: 'text',
+        });
+
+        fs.unlinkSync(req.file.path); // Clean up temp file
+
         value.audioUrl = result.secure_url;
+        value.audioConvertedText = transcription; // Update audioConvertedText field
     }
+
     const question = await questionsModel.findByIdAndUpdate(questionId, value, { new: true });
     if (!question) throw new ExpressError(404, 'Question not found');
 
@@ -299,7 +185,7 @@ module.exports.editSummarizeSpokenText = asyncWrapper(async (req, res) => {
         message: "Question updated successfully",
         question: question,
     });
-})
+});
 
 module.exports.getAllSummarizeSpokenText = asyncWrapper(async (req, res) => {
     let query = req.query.query;

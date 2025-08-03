@@ -166,19 +166,6 @@ function readFileAsBase64(filePath) {
   }
 }
 
-async function uploadToCloudinary(file, folderName) {
-  if (!file) throw new ExpressError(400, 'Please upload a file');
-
-  const result = await cloudinary.uploader.upload(file.path, {
-    resource_type: 'auto',
-    public_id: `${path.basename(file.originalname, path.extname(file.originalname))}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-    folder: `listening_test/${folderName}`,
-    type: 'authenticated',
-  });
-
-  fs.unlinkSync(file.path);
-  return result.secure_url;
-}
 
 
 const detectAudioFormat = (audioUrl, contentType) => {

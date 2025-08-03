@@ -155,6 +155,9 @@ module.exports.mockTestResult = async (req, res, next) => {
         const { questionId, mockTestId } = req.body;
         const userId = req.user._id;
 
+        console.log("User id is : ", userId);
+        
+
         if(req.file){
             console.log(req.file.path);
             

@@ -158,6 +158,9 @@ module.exports.mockTestResult = async (req, res, next) => {
         console.log("User id is : ", userId);
         
 
+        console.log(req.body);
+        // console.log(req.file.size);
+        
         if(req.file){
             console.log(req.file.path);
             

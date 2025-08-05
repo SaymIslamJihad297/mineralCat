@@ -76,7 +76,6 @@ module.exports.editFillIntheBlanks = asyncWrapper(async (req, res) => {
 
     if ((newData.type && newData.type != 'reading') || (newData.subtype && newData.subtype != 'rw_fill_in_the_blanks')) {
         throw new ExpressError(400, "question type or subtype is not valid!");
-        throw new ExpressError(400, "question type or subtype is not valid!");
     }
     const updatedQuestion = await validateAndUpdateQuestion(EditFillInTheBlanksQuestionSchemaValidator, req.body.questionId, newData);
     res.status(200).json({ message: "Question Updated Successfully", updatedQuestion });

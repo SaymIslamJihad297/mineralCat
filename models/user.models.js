@@ -42,6 +42,7 @@ const userSchema = new Schema({
     blocked: {
         type: Boolean,
         default: false,
+        required: true,
     },
     googleId: {
         type: String,

@@ -165,7 +165,8 @@ async function editQuestion(validator, questionId, data, userId, audioFile = nul
         { new: true }
     );
 
-    if (!question) throw new ExpressError('Question not found', 404);
+    if (!question) throw new ExpressError(404, 'Question not found');
+
     return question;
 }
 

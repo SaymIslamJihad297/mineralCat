@@ -4,8 +4,7 @@ const PrivacyAndPolicyModel = require('../../models/privacypolicy.models');
 const router = require('express').Router();
 
 
-router.route('/privacy-action')
-    .get(getPrivacyAndPolicy)
+router.route('/privacy-edit')
     .put(isUserLoggedIn, isAdminUser, editPrivacyAndPolicy);
 
 // router.post('/add-privacy', addPrivacyAndPolicy);

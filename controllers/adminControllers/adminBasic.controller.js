@@ -60,6 +60,22 @@ module.exports.getRecentUsers = asyncWrapper(async (req, res) => {
 });
 
 
+module.exports.getSingleUserById = asyncWrapper(async (req, res) => {
+    const userId = req.params.id;
+
+    if (!userId) {
+        return res.status(400).json({ message: 'User ID is required.' });
+    }
+
+    const user = await userModels.findById(userId).select('-password');
+
+    if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.status(200).json({ user });
+});
+
 module.exports.getAllUsers = asyncWrapper(async (req, res) => {
     const { page = 1, limit = 10, planType } = req.query;
     const skip = (page - 1) * limit;
@@ -81,7 +97,7 @@ module.exports.getAllUsers = asyncWrapper(async (req, res) => {
         .sort({ createdAt: -1 })
         .select("-password -__v -updatedAt")
         .lean();
-
+        
     if (allUsers) {
         const formattedUsers = allUsers.map(user => ({
             ...user,

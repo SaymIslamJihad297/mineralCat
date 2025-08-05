@@ -7,7 +7,7 @@ const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const googleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
-const rateLimiter = require('express-rate-limit');
+const rateLimit = require('express-rate-limit');
 const passport = require('passport');
 require('./passport');
 const path = require('path');
@@ -68,13 +68,16 @@ const { isUserLoggedIn } = require('./middleware/middlewares');
 const StripePaymentGateway = require('./models/payment.model');
 
 const seed = require('./seedScript');
-// seed();
 
-const limite = rateLimiter({
-    windowMs: 15 * 60 * 1000,
-    limit: 100,
-    message: { message: "Too many request..." }
-})
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  message: { message: "Too many requests..." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 
 cron.schedule('0 0 0 * * *', async () => {
   try {
@@ -97,7 +100,7 @@ cron.schedule('0 0 0 * * *', async () => {
   }
 });
 
-app.use(limite);
+app.use(limiter);
 
 // Apply raw body parsing specifically for the webhook route BEFORE other body parsers
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));

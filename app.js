@@ -33,7 +33,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning', 'x-refresh-token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-reset-token', 'x-refresh-token'],
 }));
 
 const mongoose = require('mongoose');

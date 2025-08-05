@@ -39,6 +39,10 @@ const userSchema = new Schema({
         ],
         default: 'user'
     },
+    blocked: {
+        type: Boolean,
+        default: false,
+    },
     googleId: {
         type: String,
     },

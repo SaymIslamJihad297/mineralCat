@@ -178,6 +178,19 @@ module.exports.updateUser = asyncWrapper(async (req, res) => {
   const data = req.body;
   const user = req.user;
 
+  if (data.email && data.email !== user.email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email cannot be changed.',
+    });
+  }
+  if (data.blocked && data.email !== user.email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Cannot Block yourself.',
+    });
+  }
+
   const folderName = 'userProfile';
   let updateFields = { ...data };
 
@@ -525,3 +538,32 @@ module.exports.logout = async (req, res) => {
 
   res.status(200).json({ message: 'Successfully logged out' });
 };
+
+
+
+module.exports.questionsCounts = asyncWrapper(async (req, res) => {
+  const counts = await questionModel.aggregate([
+    {
+      $group: {
+        _id: '$type',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const result = {
+    listening: 0,
+    speaking: 0,
+    writing: 0,
+    reading: 0,
+  };
+
+  counts.forEach(item => {
+    result[item._id] = item.count;
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+});

@@ -200,7 +200,11 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
         usersByPackage[plan].total_earning += planPrices[plan];
         totalEarnings += planPrices[plan];
 
-        if (planType && planType.toLowerCase() === plan) {
+        const includeAllUsers = planType?.toLowerCase() === 'all' && ((sub.credits ?? 0) > 0 || (sub.mockTestLimit ?? 0) > 0);
+
+        if (
+            (planType && planType.toLowerCase() === plan) || includeAllUsers
+        ) {
             userList.push({
                 userId: sub.user?._id.toString().slice(-6),
                 name: sub.user?.name || 'N/A',
@@ -221,3 +225,24 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
     });
 });
 
+
+
+
+module.exports.editUserAsAdmin = asyncWrapper(async (req, res) => {
+    const userId = req.params.userId;
+    const updateData = req.body;
+
+    if (updateData.password) {
+        updateData.password = await bcrypt.hash(updateData.password, 10);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
+        new: true,
+    }).select('-password');
+
+    if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ message: 'User updated successfully', user: updatedUser });
+});

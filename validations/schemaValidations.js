@@ -4,7 +4,7 @@ const Joi = require('joi');
 module.exports.userSchemaValidator = Joi.object({
     name: Joi.string().required(),
     email: Joi.string().email().required(),
-    password: Joi.string().required()
+    password: Joi.string().min(8).required()
 })
 
 module.exports.LoginFormValidator = Joi.object({

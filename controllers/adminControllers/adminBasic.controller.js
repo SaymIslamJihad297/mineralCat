@@ -67,7 +67,7 @@ module.exports.getSingleUserById = asyncWrapper(async (req, res) => {
         return res.status(400).json({ message: 'User ID is required.' });
     }
 
-    const user = await userModels.findById(userId).select('-password');
+    const user = await userModels.findById(userId).select('-password').populate('userSubscription');
 
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
@@ -245,14 +245,40 @@ module.exports.adminEarnings = asyncWrapper(async (req, res) => {
 
 
 module.exports.editUserAsAdmin = asyncWrapper(async (req, res) => {
-    const userId = req.params.userId;
+    const userId = req.params.id;
     const updateData = req.body;
+    console.log(updateData);
+    console.log(userId);
+    
 
     if (updateData.password) {
         updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
-    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
+    const subscriptionFields = [
+        'planType',
+        'isActive',
+        'mockTestLimit',
+        'aiScoringLimit',
+        'credits',
+        'weeklyPredictions',
+        'performanceTracking',
+        'noExpiration',
+        'startedAt',
+        'expiresAt'
+    ];
+
+    const subscriptionUpdates = {};
+    const userUpdates = { ...updateData };
+
+    subscriptionFields.forEach((field) => {
+        if (field in updateData) {
+            subscriptionUpdates[field] = updateData[field];
+            delete userUpdates[field];
+        }
+    });
+
+    const updatedUser = await userModels.findByIdAndUpdate(userId, userUpdates, {
         new: true,
     }).select('-password');
 
@@ -260,5 +286,16 @@ module.exports.editUserAsAdmin = asyncWrapper(async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
     }
 
-    res.status(200).json({ message: 'User updated successfully', user: updatedUser });
+    if (Object.keys(subscriptionUpdates).length > 0) {
+        await supscriptionModel.findOneAndUpdate(
+            { user: userId },
+            subscriptionUpdates,
+            { new: true }
+        );
+    }
+
+    res.status(200).json({
+        message: 'User updated successfully',
+        user: updatedUser
+    });
 });

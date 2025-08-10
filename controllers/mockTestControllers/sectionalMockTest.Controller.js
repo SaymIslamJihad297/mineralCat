@@ -37,6 +37,21 @@ module.exports.getAllSectionalMockTest = asyncWrapper(async (req, res) => {
     return res.status(200).json({ message: 'Sectional Mock Tests retrieved successfully', totalCount, sectionalMockTests });
 })
 
+module.exports.getSingleSectionalMockTest = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const mockTest = await sectionalMockTestModel.findById(id).populate("questions");
+        console.log(mockTest);
+
+        if (!mockTest) {
+            return res.status(404).json({ message: "Mock test not found" });
+        }
+        res.status(200).json(mockTest);
+    } catch (error) {
+        console.error("Error fetching mock test:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
 
 module.exports.deleteSectionalMockTest = asyncWrapper(async (req, res) => {
     const { id } = req.params;

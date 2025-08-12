@@ -7,7 +7,7 @@ const router = require('express').Router();
 
 router.route('/fill-in-the-blanks')
     .post(isUserLoggedIn, isAdminUser, addFillInTheBlanks)
-    .get(isUserLoggedIn, getAllFillInTheBlanks)
+    .get(isUserLoggedIn, getReadingFillInTheBlanks)
     .put(isUserLoggedIn, isAdminUser, editFillIntheBlanks);
 
 

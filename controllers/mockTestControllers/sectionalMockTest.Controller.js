@@ -8,6 +8,7 @@ const { default: axios } = require("axios");
 const { default: mongoose } = require("mongoose");
 const practicedModel = require("../../models/practiced.model");
 const fs = require('fs');
+const FormData = require('form-data');
 
 const subtypeApiUrls = {
     read_aloud: `${process.env.BACKENDURL}/test/speaking/read_aloud/result`,

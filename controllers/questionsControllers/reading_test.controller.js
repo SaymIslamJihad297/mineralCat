@@ -277,13 +277,32 @@ module.exports.getReadingFillInTheBlanks = asyncWrapper(async (req, res) => {
 
 
 module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
-    const { questionId, answer } = req.body;
-    const userId = req.user._id;
-    const blanks = answer;
-    const result = await evaluateReadingFillInTheBlanksResult({userId, questionId, blanks});
-    
-    res.status(200).json(result);
+  const { questionId, answer } = req.body;
+  const userId = req.user._id;
+
+  console.log(answer);
+  
+  let blanks = [];
+
+  if (Array.isArray(answer)) {
+    if (answer.length > 0 && typeof answer[0] === 'object' && 'selectedAnswer' in answer[0]) {
+      blanks = answer;
+    } else {
+      blanks = answer.map((item, index) => ({
+        index,
+        selectedAnswer: item
+      }));
+    }
+  }
+
+  console.log(blanks);
+  
+
+  const result = await evaluateReadingFillInTheBlanksResult({ userId, questionId, blanks });
+
+  res.status(200).json(result);
 });
+
 // module.exports.readingFillInTheBlanksResult = asyncWrapper(async (req, res) => {
 //     const { questionId, blanks } = req.body;
 //     const question = await Question.findById(questionId).lean();

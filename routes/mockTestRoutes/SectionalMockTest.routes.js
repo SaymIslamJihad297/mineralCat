@@ -18,4 +18,3 @@ router.post('/result-single-question', isUserLoggedIn, createUploadMiddleware(['
 router.get('/get-mock-test-result/:mockTestId', isUserLoggedIn,checkLimit(['mock']), getFormattedMockTestResult);
 
 module.exports = router;
-

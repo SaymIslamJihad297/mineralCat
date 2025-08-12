@@ -11,6 +11,7 @@ const { asyncWrapper } = require("../../utils/AsyncWrapper");
 const { default: mongoose } = require("mongoose");
 const practicedModel = require("../../models/practiced.model");
 const supscriptionModel = require("../../models/supscription.model");
+const { log } = require("console");
 
 const BACKENDURL = process.env.BACKENDURL;
 
@@ -166,10 +167,15 @@ module.exports.mockTestResult = async (req, res, next) => {
             
         }
 
+        console.log("Hello 1");
+        
+
         if (!questionId || !mockTestId)
             throw new ExpressError(400, 'questionId and mockTestId are required');
 
+        console.log("Hello 2");
         const question = await questionsModel.findById(questionId).lean();
+        console.log("Hello 3");
         if (!question) throw new ExpressError(404, 'Invalid questionId or question not found');
 
         const mockTest = await FullmockTestSchema.findById(mockTestId).lean();
@@ -180,6 +186,8 @@ module.exports.mockTestResult = async (req, res, next) => {
             throw new ExpressError(400, 'This question does not belong to the specified mock test');
 
         const apiUrl = subtypeApiUrls[question.subtype];
+        console.log(apiUrl);
+        
         if (!apiUrl) throw new ExpressError(400, 'Unsupported question subtype');
 
         const newData = { ...req.body };
@@ -197,14 +205,21 @@ module.exports.mockTestResult = async (req, res, next) => {
             }
         }
 
+        console.log("Hello 4");
+        
+
         const subscription = await supscriptionModel.findOne({
             user: userId,
             isActive: true
         });
 
+        console.log("Hello 5");
+
         if (!subscription) {
             return res.status(404).json({ success: false, message: "Active subscription not found" });
         }
+
+        console.log("Hello 6");
 
         if (subscription.mockTestLimit > 0) {
             await supscriptionModel.findOneAndUpdate(
@@ -219,6 +234,7 @@ module.exports.mockTestResult = async (req, res, next) => {
             return res.status(403).json({ success: false, message: "Your mock test limit is 0" });
         }
 
+        console.log("Hello 7");
 
 
         let response;
@@ -240,12 +256,20 @@ module.exports.mockTestResult = async (req, res, next) => {
                 if (err) console.warn('Failed to delete file:', err);
             });
         } else {
+            console.log(newData);
+            
             response = await axios.post(apiUrl, newData, {
                 headers: {
                     Authorization: req.headers.authorization || '',
                 },
             });
+            console.log("response is : ", response.data);
+            if (response.data.error) {
+                return res.status(400).json({ success: false, message: response.data.error });
+            }
         }
+
+        console.log("Hello 8");
 
         const scoreData = response.data;
         const subtype = question.subtype;
@@ -340,6 +364,8 @@ module.exports.mockTestResult = async (req, res, next) => {
                 console.warn("No score found in summarize_spoken_text response");
             }
         } else if (subtype === 'listening_fill_in_the_blanks') {
+            console.log("Hello");
+            
             if (scoreData && scoreData.result.score && typeof scoreData.result.score === 'number') {
                 score = scoreData.result.score;
                 console.log("Extracted score:", score);

@@ -7,7 +7,7 @@ const questionsModel = require("../../models/questions.model");
 const { default: axios } = require("axios");
 const { default: mongoose } = require("mongoose");
 const practicedModel = require("../../models/practiced.model");
-
+const fs = require('fs');
 
 const subtypeApiUrls = {
     read_aloud: `${process.env.BACKENDURL}/test/speaking/read_aloud/result`,
@@ -425,7 +425,7 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
 
     await practicedModel.updateOne(
         { user: userId },
-        { $addToSet: { completedMockTests: mockTestId } },
+        { $addToSet: { completedSectionalTests: mockTestId } },
         { upsert: true }
     );
 

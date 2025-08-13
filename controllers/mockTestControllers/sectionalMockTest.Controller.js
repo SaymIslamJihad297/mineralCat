@@ -424,11 +424,11 @@ module.exports.getFormattedMockTestResult = asyncWrapper(async (req, res) => {
         testDate: new Date().toISOString()
     };
 
-    await practicedModel.updateOne(
-        { user: userId },
-        { $addToSet: { completedSectionalTests: mockTestId } },
-        { upsert: true }
-    );
+    await practicedModel.updateMany(
+    { user: userId },
+    { $addToSet: { completedSectionalTests: mockTestId } }
+);
+
 
 
     res.status(200).json({

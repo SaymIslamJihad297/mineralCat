@@ -58,15 +58,15 @@ subscriptionSchema.pre('save', function(next) {
     if (this.planType === 'Bronze') {
         this.mockTestLimit += 5;
         this.aiScoringLimit += 100;
-        this.credits = 100;
+        this.credits += 100;
     } else if (this.planType === 'Silver') {
         this.mockTestLimit += 10;
         this.aiScoringLimit += 300;
-        this.credits = 300;
+        this.credits += 300;
     } else if (this.planType === 'Gold') {
         this.mockTestLimit += 15;
         this.aiScoringLimit += 700;
-        this.credits = 700;
+        this.credits += 700;
     }
     next();
 });

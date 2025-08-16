@@ -20,7 +20,8 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3002',
     'https://minarelcat-admin.surge.sh',
-    'http://minarelcat-admin.surge.sh'
+    'http://minarelcat-admin.surge.sh',
+    'https://sakib3002.sakibahmad.com'
 ];
 
 app.use(cors({

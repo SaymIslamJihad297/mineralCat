@@ -1,5 +1,5 @@
 const { forgetPassword, verifyOtp, resetPassword } = require('../../controllers/userControllers/otpController');
-const { userInfo, updateUser, getAQuestion, addToBookmark, getBookMark, addNotification, getNotifications, getUnseenNotificationCount, userProgress, userPaymentHistory, logout, questionsCounts } = require('../../controllers/userControllers/user.controllers');
+const { userInfo, updateUser, getAQuestion, toggleBookmark, getBookMark, addNotification, getNotifications, getUnseenNotificationCount, userProgress, userPaymentHistory, logout, questionsCounts } = require('../../controllers/userControllers/user.controllers');
 const { isUserLoggedIn, isAdminUser } = require('../../middleware/middlewares');
 const createUploadMiddleware = require('../../middleware/upload');
 
@@ -23,7 +23,7 @@ router.get('/get-question/:id', isUserLoggedIn, getAQuestion);
 
 router.route('/bookmark')
     .get(isUserLoggedIn, getBookMark)
-    .post(isUserLoggedIn, addToBookmark);
+    .post(isUserLoggedIn, toggleBookmark);
 
 
 router.get('/notification', isUserLoggedIn, getNotifications)

@@ -262,7 +262,7 @@ module.exports.getAQuestion = asyncWrapper(async (req, res) => {
 })
 
 
-module.exports.addToBookmark = asyncWrapper(async (req, res) => {
+module.exports.toggleBookmark = asyncWrapper(async (req, res) => {
   const userId = req.user._id;
   const { id } = req.body;
 
@@ -270,7 +270,6 @@ module.exports.addToBookmark = asyncWrapper(async (req, res) => {
     throw new ExpressError(400, "Question ID is required");
   }
 
-  // Fetch question to get type and subtype
   const question = await questionModel.findById(id);
   if (!question) {
     throw new ExpressError(404, "Question not found");
@@ -279,14 +278,25 @@ module.exports.addToBookmark = asyncWrapper(async (req, res) => {
   const { type: questionType, subtype } = question;
 
   let bookmark = await bookmarkModel.findOne({ user: userId, questionType, subtype });
-
+  
   if (bookmark) {
-    if (bookmark.bookmarkedQuestions.includes(id)) {
-      return res.status(200).json({ message: "Already bookmarked" });
-    }
+    const index = bookmark.bookmarkedQuestions.indexOf(id);
 
-    bookmark.bookmarkedQuestions.push(id);
-    await bookmark.save();
+    if (index > -1) {
+      bookmark.bookmarkedQuestions.splice(index, 1);
+
+      if (bookmark.bookmarkedQuestions.length === 0) {
+        await bookmark.deleteOne();
+        return res.status(200).json({ message: "Bookmark removed completely" });
+      }
+
+      await bookmark.save();
+      return res.status(200).json({ message: "Removed from bookmarks", data: bookmark });
+    } else {
+      bookmark.bookmarkedQuestions.push(id);
+      await bookmark.save();
+      return res.status(200).json({ message: "Bookmarked successfully", data: bookmark });
+    }
   } else {
     bookmark = await bookmarkModel.create({
       user: userId,
@@ -294,14 +304,9 @@ module.exports.addToBookmark = asyncWrapper(async (req, res) => {
       subtype,
       bookmarkedQuestions: [id]
     });
+    return res.status(200).json({ message: "Bookmarked successfully", data: bookmark });
   }
-
-  res.status(200).json({
-    message: "Bookmarked successfully",
-    data: bookmark
-  });
 });
-
 
 
 module.exports.getBookMark = asyncWrapper(async (req, res) => {
